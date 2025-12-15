@@ -29,12 +29,35 @@ function MyComponent() {
 />
 ```
 
+### With User Payload
+
+Pass user information (firstName, lastName, email, phone, avatar, custom data) to Novu:
+
+```jsx
+<NovuInbox
+  userPayload={{
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john.doe@example.com',
+    phone: '+1234567890',
+    avatar: 'https://example.com/avatar.jpg',
+    data: {
+      department: 'Engineering',
+      role: 'Developer'
+    }
+  }}
+/>
+```
+
+**Note:** If `userPayload` is not provided, the component will automatically extract user data from the AuthContext (firstName, lastName, email, phone, avatar, etc.).
+
 ## Props
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `applicationIdentifier` | string | `null` | Novu application identifier. If not provided, uses `NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER` from env |
 | `subscriberId` | string | `null` | Subscriber ID. If not provided, uses employeeId from AuthContext or localStorage |
+| `userPayload` | object | `null` | User payload object with `firstName`, `lastName`, `email`, `phone`, `avatar`, `data` (custom data). If not provided, automatically extracts from AuthContext user data |
 | `backendUrl` | string | `null` | Backend URL for EU region. If not provided, uses `NEXT_PUBLIC_NOVU_BACKEND_URL` from env |
 | `socketUrl` | string | `null` | Socket URL for EU region. If not provided, uses `NEXT_PUBLIC_NOVU_SOCKET_URL` from env |
 | `className` | string | `''` | Additional CSS classes |
@@ -49,13 +72,18 @@ function MyComponent() {
    - localStorage (`employeeId` key)
    - Or the `subscriberId` prop if provided
 
-2. **Application Identifier**: Uses:
+2. **User Payload**: The component passes user information to Novu:
+   - If `userPayload` prop is provided, it uses that directly
+   - Otherwise, it automatically extracts from AuthContext: `firstName`, `lastName`, `email`, `phone`, `avatar`, and custom `data` from `user.customProperties` or `user.employeeData`
+   - The subscriber object includes both `subscriberId` and user payload data
+
+3. **Application Identifier**: Uses:
    - The `applicationIdentifier` prop if provided
    - Or `NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER` from environment variables
 
-3. **Authentication**: The component checks if the user is authenticated. If not, it shows a message to log in.
+4. **Authentication**: The component checks if the user is authenticated. If not, it shows a message to log in.
 
-4. **EU Region**: If your Novu account is in the EU region, set the `backendUrl` and `socketUrl` props or environment variables.
+5. **EU Region**: If your Novu account is in the EU region, set the `backendUrl` and `socketUrl` props or environment variables.
 
 ## Environment Variables
 

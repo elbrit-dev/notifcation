@@ -10,6 +10,7 @@ import { useAuth } from './AuthContext';
  * @param {Object} props - Component props
  * @param {string} props.applicationIdentifier - Novu application identifier (optional, uses env if not provided)
  * @param {string} props.subscriberId - Subscriber ID (optional, uses employeeId from auth if not provided)
+ * @param {Object} props.userPayload - User payload object with firstName, lastName, email, phone, avatar, data (optional)
  * @param {string} props.backendUrl - Backend URL for EU region (optional)
  * @param {string} props.socketUrl - Socket URL for EU region (optional)
  * @param {string} props.className - Additional CSS classes
@@ -19,6 +20,7 @@ import { useAuth } from './AuthContext';
 const NovuInbox = ({
   applicationIdentifier = null,
   subscriberId = null,
+  userPayload = null,
   backendUrl = null,
   socketUrl = null,
   className = '',
@@ -58,6 +60,71 @@ const NovuInbox = ({
 
   const finalSubscriberId = getSubscriberId();
 
+  // Build subscriber object with payload
+  const buildSubscriberObject = () => {
+    if (!finalSubscriberId) return null;
+
+    // Start with subscriberId
+    const subscriber = {
+      subscriberId: finalSubscriberId
+    };
+
+    // If userPayload is provided, use it directly
+    if (userPayload && typeof userPayload === 'object') {
+      return {
+        ...subscriber,
+        ...userPayload
+      };
+    }
+
+    // Otherwise, build from user data if available
+    if (user) {
+      // Extract user data
+      const firstName = user?.firstName || 
+                       user?.displayName?.split(' ')[0] || 
+                       user?.employeeData?.first_name || 
+                       null;
+      
+      const lastName = user?.lastName || 
+                      user?.displayName?.split(' ').slice(1).join(' ') || 
+                      user?.employeeData?.last_name || 
+                      null;
+      
+      const email = user?.email || 
+                   user?.company_email || 
+                   user?.employeeData?.company_email || 
+                   null;
+      
+      const phone = user?.phoneNumber || 
+                   user?.cell_number || 
+                   user?.employeeData?.cell_number || 
+                   null;
+
+      // Add non-null values to subscriber
+      if (firstName) subscriber.firstName = firstName;
+      if (lastName) subscriber.lastName = lastName;
+      if (email) subscriber.email = email;
+      if (phone) subscriber.phone = phone;
+
+      // Add avatar if available
+      if (user?.photoURL) {
+        subscriber.avatar = user.photoURL;
+      }
+
+      // Add custom data if available
+      if (user?.customProperties || user?.employeeData) {
+        subscriber.data = {
+          ...(user.customProperties || {}),
+          ...(user.employeeData || {})
+        };
+      }
+    }
+
+    return subscriber;
+  };
+
+  const subscriberObject = buildSubscriberObject();
+
   // Get EU region URLs from env if not provided
   const finalBackendUrl = backendUrl || 
     (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_BACKEND_URL : null);
@@ -92,7 +159,7 @@ const NovuInbox = ({
   }
 
   // If not authenticated or no subscriber ID, show message
-  if (!isAuthenticated || !finalSubscriberId) {
+  if (!isAuthenticated || !finalSubscriberId || !subscriberObject) {
     if (loading) {
       return (
         <div className={className} style={style}>
@@ -112,10 +179,10 @@ const NovuInbox = ({
     );
   }
 
-  // Render Inbox with subscriber ID
+  // Render Inbox with subscriber object (includes subscriberId and user payload)
   const inboxProps = {
     applicationIdentifier: appIdentifier,
-    subscriber: finalSubscriberId,
+    subscriber: subscriberObject,
     ...otherProps
   };
 

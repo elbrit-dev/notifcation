@@ -53,6 +53,25 @@ function NovuInboxExample() {
           socketUrl="wss://eu.socket.novu.co"
         />
       </div>
+
+      {/* Example 6: With User Payload */}
+      <div style={{ marginBottom: '40px' }}>
+        <h3>Example 6: With User Payload</h3>
+        <p>Pass user data (firstName, lastName, email, phone, avatar, data) to Novu</p>
+        <NovuInbox 
+          userPayload={{
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john.doe@example.com',
+            phone: '+1234567890',
+            avatar: 'https://example.com/avatar.jpg',
+            data: {
+              department: 'Engineering',
+              role: 'Developer'
+            }
+          }}
+        />
+      </div>
     </div>
   );
 }
