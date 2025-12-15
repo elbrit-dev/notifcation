@@ -131,6 +131,17 @@ const NovuInbox = ({
   const finalSocketUrl = socketUrl || 
     (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_SOCKET_URL : null);
 
+  // Debug: log subscriber payload in browser console
+  if (typeof window !== 'undefined') {
+    console.log('[NovuInbox] subscriber payload:', {
+      isAuthenticated,
+      finalSubscriberId,
+      userPayload,
+      subscriberObject,
+      rawUser: user,
+    });
+  }
+
   // Don't render until mounted (client-side only)
   if (!mounted) {
     return null;
