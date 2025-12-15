@@ -34,9 +34,9 @@ const VisibilityGate = dynamic(() => import("./components/PlasmicPerformance").t
 export const PLASMIC = initPlasmicLoader({
   projects: [
     {
-      id: 'oiawYdGgGKrh1ZZAv15gDZ',  // ID of a project you are using
-      token: 'at5jesnXc89u9hbeOAv8HEZRXhbDHtJCVKm7DsJoRGxuRCGXsNP4LynYxAea6cDCjlePUmjN5TIX3ImE35A',  // API token for that project
-      version: process.env.PLASMIC_VERSION_TAG  // Version tag (e.g., 'prod', 'dev')
+      id: 'jD94tCHP9ZABQ5a6emLpe6',  // ID of a project you are using
+      token: 'Kaq51ZdDUxTbU1TNw8e1cvPdWfk3OrLEXWoxuesk9qdwpE3HnfM0oAL5dEheZIoUZ4Kx01UecK0nG1JQ',  // API token for that project
+      // version: process.env.PLASMIC_VERSION_TAG  
     }
   ],
 
