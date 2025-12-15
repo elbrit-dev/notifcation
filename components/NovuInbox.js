@@ -171,6 +171,17 @@ const NovuInbox = ({
 
   // If not authenticated or no subscriber ID, show message
   if (!isAuthenticated || !finalSubscriberId || !subscriberObject) {
+    // Debug: log why inboxProps won't be created
+    if (typeof window !== 'undefined') {
+      console.warn('[NovuInbox] Component returning early - inboxProps will NOT be created:', {
+        isAuthenticated,
+        finalSubscriberId,
+        subscriberObject,
+        reason: !isAuthenticated ? 'not authenticated' : !finalSubscriberId ? 'no subscriberId' : 'no subscriberObject',
+        loading
+      });
+    }
+    
     if (loading) {
       return (
         <div className={className} style={style}>
@@ -203,6 +214,18 @@ const NovuInbox = ({
   }
   if (finalSocketUrl) {
     inboxProps.socketUrl = finalSocketUrl;
+  }
+
+  // Debug: log inboxProps that will be passed to Novu Inbox
+  if (typeof window !== 'undefined') {
+    console.log('[NovuInbox] inboxProps being passed to Inbox component:', {
+      applicationIdentifier: inboxProps.applicationIdentifier,
+      subscriber: inboxProps.subscriber,
+      backendUrl: inboxProps.backendUrl,
+      socketUrl: inboxProps.socketUrl,
+      otherProps: Object.keys(otherProps).length > 0 ? otherProps : 'none',
+      fullInboxProps: inboxProps
+    });
   }
 
   return (
