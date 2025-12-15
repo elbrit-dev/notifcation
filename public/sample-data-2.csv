@@ -1,0 +1,12 @@
+Product ID,Product Name,Category,Price,Stock,Supplier
+P001,Laptop Computer,Electronics,999.99,45,TechCorp
+P002,Wireless Mouse,Electronics,29.99,120,TechCorp
+P003,Office Chair,Furniture,199.99,30,FurniturePlus
+P004,Desk Lamp,Furniture,49.99,75,HomeGoods
+P005,USB Cable,Electronics,12.99,200,TechCorp
+P006,Notebook Set,Stationery,15.99,150,OfficeSupply
+P007,Monitor Stand,Furniture,79.99,50,FurniturePlus
+P008,Keyboard,Electronics,89.99,80,TechCorp
+P009,Desk Organizer,Furniture,34.99,90,HomeGoods
+P010,Pen Set,Stationery,8.99,300,OfficeSupply
+

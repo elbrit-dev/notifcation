@@ -1,0 +1,220 @@
+/* A3 Print Styles - Comprehensive CSS for reliable A3 printing */
+
+/* Base A3 page setup */
+@media print {
+  @page {
+    size: A3 !important;
+    margin: 0.3in !important;
+  }
+  
+  /* Ensure all page types use A3 */
+  @page :first {
+    size: A3 !important;
+    margin: 0.3in !important;
+  }
+  
+  @page :left {
+    size: A3 !important;
+    margin: 0.3in !important;
+  }
+  
+  @page :right {
+    size: A3 !important;
+    margin: 0.3in !important;
+  }
+  
+  /* Body styling for A3 */
+  body {
+    color: black !important;
+    background: white !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    font-size: 12pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Ensure proper color printing */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Specific color printing rules */
+  @media print and (color) {
+    * {
+      -webkit-print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+  }
+  
+  /* Hide elements that shouldn't print */
+  .no-print,
+  .print-hide {
+    display: none !important;
+  }
+  
+  /* Show only print elements */
+  .print-only {
+    display: block !important;
+  }
+  
+  /* Ensure images print properly */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+    page-break-inside: avoid !important;
+  }
+  
+  /* Table printing optimizations */
+  table {
+    page-break-inside: avoid !important;
+    width: 100% !important;
+  }
+  
+  /* Prevent page breaks in important content */
+  .no-break {
+    page-break-inside: avoid !important;
+  }
+  
+  /* Force page breaks when needed */
+  .page-break {
+    page-break-before: always !important;
+  }
+  
+  /* A3 specific dimensions */
+  .a3-container {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* Screen styles for A3 preview */
+@media screen {
+  .a3-preview {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border: 1px solid #ddd;
+  }
+  
+  .a3-preview h1,
+  .a3-preview h2,
+  .a3-preview h3 {
+    color: #333;
+    margin-top: 0;
+  }
+  
+  .a3-preview p {
+    margin-bottom: 1em;
+    line-height: 1.4;
+  }
+}
+
+/* Print button styles */
+.print-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.print-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.print-button:active {
+  transform: translateY(0);
+}
+
+.print-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.print-button-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.print-button-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+  box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+.print-button-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.print-button-secondary:hover:not(:disabled) {
+  background-color: #545b62;
+  box-shadow: 0 4px 8px rgba(108,117,125,0.3);
+}
+
+.print-button-outline {
+  background-color: transparent;
+  color: #007bff;
+  border: 2px solid #007bff;
+}
+
+.print-button-outline:hover:not(:disabled) {
+  background-color: #007bff;
+  color: white;
+  box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+/* Loading spinner for print button */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.print-loading {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Focus styles for accessibility */
+.print-button:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .print-button {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .print-button {
+    transition: none;
+  }
+  
+  .print-loading {
+    animation: none;
+  }
+}

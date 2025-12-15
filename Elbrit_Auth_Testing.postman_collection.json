@@ -1,0 +1,178 @@
+{
+  "info": {
+    "name": "Elbrit Auth Testing",
+    "_postman_id": "elbrit-auth-test-001",
+    "description": "Collection for testing Elbrit authentication endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth Tests",
+      "item": [
+        {
+          "name": "1. Auth - Valid Email (Microsoft SSO)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@elbrit.org\",\n  \"authProvider\": \"microsoft\"\n}"
+            },
+            "url": {
+              "raw": "https://app.elbrit.org/api/erpnext/auth",
+              "protocol": "https",
+              "host": ["app", "elbrit", "org"],
+              "path": ["api", "erpnext", "auth"]
+            },
+            "description": "Test authentication with a valid email address (Microsoft SSO)"
+          },
+          "response": []
+        },
+        {
+          "name": "2. Auth - Valid Phone Number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+919876543210\",\n  \"authProvider\": \"phone\"\n}"
+            },
+            "url": {
+              "raw": "https://app.elbrit.org/api/erpnext/auth",
+              "protocol": "https",
+              "host": ["app", "elbrit", "org"],
+              "path": ["api", "erpnext", "auth"]
+            },
+            "description": "Test authentication with a valid phone number"
+          },
+          "response": []
+        },
+        {
+          "name": "3. Auth - Phone Number (Cleaned Format)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"9876543210\",\n  \"authProvider\": \"phone\"\n}"
+            },
+            "url": {
+              "raw": "https://app.elbrit.org/api/erpnext/auth",
+              "protocol": "https",
+              "host": ["app", "elbrit", "org"],
+              "path": ["api", "erpnext", "auth"]
+            },
+            "description": "Test authentication with phone number without country code"
+          },
+          "response": []
+        },
+        {
+          "name": "4. Auth - Invalid Email (Should Fail)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nonexistent@example.com\",\n  \"authProvider\": \"microsoft\"\n}"
+            },
+            "url": {
+              "raw": "https://app.elbrit.org/api/erpnext/auth",
+              "protocol": "https",
+              "host": ["app", "elbrit", "org"],
+              "path": ["api", "erpnext", "auth"]
+            },
+            "description": "Test with non-existent email - should return 403 Forbidden"
+          },
+          "response": []
+        },
+        {
+          "name": "5. Auth - Missing Fields (Should Fail)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authProvider\": \"microsoft\"\n}"
+            },
+            "url": {
+              "raw": "https://app.elbrit.org/api/erpnext/auth",
+              "protocol": "https",
+              "host": ["app", "elbrit", "org"],
+              "path": ["api", "erpnext", "auth"]
+            },
+            "description": "Test with missing email/phone - should return 400 Bad Request"
+          },
+          "response": []
+        },
+        {
+          "name": "6. Auth - Wrong HTTP Method (Should Fail)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://app.elbrit.org/api/erpnext/auth",
+              "protocol": "https",
+              "host": ["app", "elbrit", "org"],
+              "path": ["api", "erpnext", "auth"]
+            },
+            "description": "Test with GET method - should return 405 Method Not Allowed"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ERPNext Tests",
+      "item": [
+        {
+          "name": "Test ERPNext Connection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://app.elbrit.org/api/erpnext/test",
+              "protocol": "https",
+              "host": ["app", "elbrit", "org"],
+              "path": ["api", "erpnext", "test"]
+            },
+            "description": "Test if ERPNext connection is working"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://app.elbrit.org",
+      "type": "string"
+    }
+  ]
+}
+

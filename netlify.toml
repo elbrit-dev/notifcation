@@ -1,0 +1,32 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[functions]
+  # Reduce environment variable size for Lambda functions
+  # Note: Netlify doesn't support excluding env vars directly in config
+  # The solution is to only set server-side env vars in Netlify UI (see NETLIFY_ENV_SETUP.md)
+
+[build.environment]
+  # Build-time variables (available during build, embedded in bundle)
+  # NEXT_PUBLIC_* variables are automatically available during build
+  # and get embedded in the JavaScript bundle, so they don't need to be
+  # passed to Lambda functions at runtime.
+
+[[redirects]]
+  from = "/_next/image"
+  to = "/.netlify/images"
+  status = 200
+  query = {url = ":url", w = ":width", q = ":quality"}
+
+[[redirects]]
+  from = "/_ipx/*"
+  to = "/.netlify/images"
+  status = 200
+  query = {url = ":url", w = ":width", q = ":quality"}
+
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
