@@ -31,6 +31,19 @@ const NovuInbox = ({
   const { user, isAuthenticated, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
 
+  // Debug: Always log component render (at the very top)
+  if (typeof window !== 'undefined') {
+    console.log('[NovuInbox] Component rendering with props:', {
+      applicationIdentifier,
+      subscriberId,
+      userPayload,
+      keyless,
+      hasUser: !!user,
+      isAuthenticated,
+      loading
+    });
+  }
+
   // Ensure component only renders on client side
   useEffect(() => {
     setMounted(true);
@@ -131,15 +144,17 @@ const NovuInbox = ({
   const finalSocketUrl = socketUrl || 
     (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_SOCKET_URL : null);
 
-  // Debug: log subscriber payload in browser console
+  // Debug: log subscriber payload in browser console (ALWAYS LOG THIS)
   if (typeof window !== 'undefined') {
-    console.log('[NovuInbox] subscriber payload:', {
-      isAuthenticated,
-      finalSubscriberId,
-      userPayload,
-      subscriberObject,
-      rawUser: user,
-    });
+    console.group('🔵 [NovuInbox] Subscriber Payload Debug');
+    console.log('isAuthenticated:', isAuthenticated);
+    console.log('finalSubscriberId:', finalSubscriberId);
+    console.log('userPayload (prop):', userPayload);
+    console.log('subscriberObject (built):', subscriberObject);
+    console.log('rawUser (from AuthContext):', user);
+    console.log('appIdentifier:', appIdentifier);
+    console.log('keyless mode:', keyless);
+    console.groupEnd();
   }
 
   // Don't render until mounted (client-side only)
@@ -149,6 +164,12 @@ const NovuInbox = ({
 
   // Keyless mode for testing
   if (keyless) {
+    if (typeof window !== 'undefined') {
+      console.warn('[NovuInbox] ⚠️ KEYLESS MODE - Using keyless mode, subscriber payload will NOT be sent:', {
+        keyless,
+        otherProps: Object.keys(otherProps).length > 0 ? otherProps : 'none'
+      });
+    }
     return (
       <div className={className} style={style}>
         <Inbox {...otherProps} />
@@ -158,6 +179,14 @@ const NovuInbox = ({
 
   // If no application identifier, show message
   if (!appIdentifier) {
+    if (typeof window !== 'undefined') {
+      console.error('[NovuInbox] ❌ NO APPLICATION IDENTIFIER - Component will show error message:', {
+        appIdentifier,
+        applicationIdentifier,
+        envVar: typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER : 'N/A',
+        'Note': 'This will cause Novu to use keyless mode automatically'
+      });
+    }
     return (
       <div className={className} style={style}>
         <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
@@ -216,16 +245,16 @@ const NovuInbox = ({
     inboxProps.socketUrl = finalSocketUrl;
   }
 
-  // Debug: log inboxProps that will be passed to Novu Inbox
+  // Debug: log inboxProps that will be passed to Novu Inbox (THIS IS THE FINAL PAYLOAD)
   if (typeof window !== 'undefined') {
-    console.log('[NovuInbox] inboxProps being passed to Inbox component:', {
-      applicationIdentifier: inboxProps.applicationIdentifier,
-      subscriber: inboxProps.subscriber,
-      backendUrl: inboxProps.backendUrl,
-      socketUrl: inboxProps.socketUrl,
-      otherProps: Object.keys(otherProps).length > 0 ? otherProps : 'none',
-      fullInboxProps: inboxProps
-    });
+    console.group('✅ [NovuInbox] inboxProps - FINAL PAYLOAD BEING SENT TO NOVU');
+    console.log('applicationIdentifier:', inboxProps.applicationIdentifier);
+    console.log('subscriber (THE PAYLOAD):', inboxProps.subscriber);
+    console.log('backendUrl:', inboxProps.backendUrl);
+    console.log('socketUrl:', inboxProps.socketUrl);
+    console.log('otherProps:', Object.keys(otherProps).length > 0 ? otherProps : 'none');
+    console.log('FULL inboxProps object:', inboxProps);
+    console.groupEnd();
   }
 
   return (
