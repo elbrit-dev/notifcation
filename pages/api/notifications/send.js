@@ -65,26 +65,11 @@ export default async function handler(req, res) {
     
     const workflowIdentifier = workflowId || 'default';
     
-    // Hardcoded subscriber data for production
-    const hardcodedSubscriberData = {
-      subscriberId: 'IN003',
-      email: 'mounika@elbrit.org',
-      firstName: 'Mounika',
-      lastName: 'M',
-      phone: '+919345405242'
-    };
-
     // Novu trigger API format: novu.trigger(workflowId, { to, payload })
-    // Use hardcoded subscriber data or provided subscriberId
-    const finalSubscriberId = subscriberId || hardcodedSubscriberData.subscriberId;
-    
+    // The 'to' object can include subscriberId and subscriber data
     const triggerPayload = {
       to: {
-        subscriberId: String(finalSubscriberId),
-        email: hardcodedSubscriberData.email,
-        firstName: hardcodedSubscriberData.firstName,
-        lastName: hardcodedSubscriberData.lastName,
-        phone: hardcodedSubscriberData.phone
+        subscriberId: String(subscriberId)
       },
       payload: {
         title: String(title),
@@ -108,7 +93,7 @@ export default async function handler(req, res) {
       success: true,
       message: 'Notification sent successfully',
       transactionId: result.data?.transactionId,
-      subscriberId: finalSubscriberId,
+      subscriberId,
       title,
       body
     });
