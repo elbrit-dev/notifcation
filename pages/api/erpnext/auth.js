@@ -445,6 +445,34 @@ export default async function handler(req, res) {
       console.warn('⚠️ Employee ID not available from ERPNext - skipping Novu subscriber creation');
     }
 
+    // TEST: Send a test notification to IN003
+    // TODO: Remove this test code after verification
+    try {
+      const novuSecretKey = process.env.NOVU_SECRET_KEY || process.env.NEXT_PUBLIC_NOVU_SECRET_KEY;
+      if (novuSecretKey) {
+        const novu = new Novu({
+          secretKey: novuSecretKey,
+        });
+        
+        const testSubscriberId = 'IN003'; // Hardcoded for testing
+        
+        await novu.trigger('default', {
+          to: {
+            subscriberId: testSubscriberId
+          },
+          payload: {
+            title: 'Order Shipped',
+            body: 'Your order has been shipped!'
+          }
+        });
+        
+        console.log('✅ Test notification sent to:', testSubscriberId);
+      }
+    } catch (notifError) {
+      console.warn('⚠️ Test notification failed (non-critical):', notifError.message);
+      // Don't fail auth if notification fails
+    }
+
     return res.status(200).json({
       success: true,
       user: userData,
