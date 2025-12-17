@@ -12,9 +12,9 @@ function NovuInboxExample() {
       <h2>NovuInbox Examples</h2>
       
      
-      {/* Example 6: With User Payload */}
+      {/* Example 6: With Payloads */}
       <div style={{ marginBottom: '40px' }}>
-        <h3>Example 6: With User Payload</h3>
+        <h3>Example 6: With Payloads</h3>
         <p>Pass user data (firstName, lastName, email, phone, avatar, data) to Novu</p>
         <NovuInbox 
           userPayload={{
