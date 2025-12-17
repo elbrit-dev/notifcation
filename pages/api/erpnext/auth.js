@@ -456,15 +456,15 @@ export default async function handler(req, res) {
         
         const testSubscriberId = 'IN003'; // Hardcoded for testing
         
-        await novu.trigger('default', {
-          to: {
-            subscriberId: testSubscriberId
-          },
-          payload: {
-            title: 'Order Shipped',
-            body: 'Your order has been shipped!'
-          }
-        });
+          await novu.trigger('default', {
+            to: {
+              subscriberId: String(testSubscriberId) // Ensure it's a string
+            },
+            payload: {
+              title: 'Order Shipped',
+              body: 'Your order has been shipped!'
+            }
+          });
         
         console.log('✅ Test notification sent to:', testSubscriberId);
       }

@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     // Send test notification
     const result = await novu.trigger('default', {
       to: {
-        subscriberId: testSubscriberId
+        subscriberId: String(testSubscriberId) // Ensure it's a string
       },
       payload: {
         title: 'Order Shipped',

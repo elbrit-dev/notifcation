@@ -65,14 +65,15 @@ export default async function handler(req, res) {
     
     const workflowIdentifier = workflowId || 'default';
     
+    // Novu trigger expects 'to' to be an object with subscriberId
     const result = await novu.trigger(workflowIdentifier, {
       to: {
-        subscriberId: subscriberId
+        subscriberId: String(subscriberId) // Ensure it's a string
       },
       payload: {
-        title,
-        body,
-        ...notificationPayload
+        title: String(title),
+        body: String(body),
+        ...(payload || {})
       }
     });
 
@@ -93,19 +94,28 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('❌ Error sending notification:', error);
+    console.error('Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      workflowId: workflowId || 'default',
+      subscriberId
+    });
     
     // Handle specific Novu API errors
     if (error.response?.data) {
       return res.status(error.response.status || 500).json({
         error: 'Failed to send notification',
         details: error.response.data,
-        message: error.message
+        message: error.message,
+        workflowId: workflowId || 'default'
       });
     }
 
     return res.status(500).json({
       error: 'Failed to send notification',
-      message: error.message
+      message: error.message,
+      details: error.stack
     });
   }
 }
