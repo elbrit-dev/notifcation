@@ -1,15 +1,5 @@
-/**
- * Production Examples: How to Send Notifications in Your App
- * 
- * These are real-world examples of how to integrate notifications
- * into your application logic.
- */
-
 import { sendNotification, sendNotificationToMultiple } from './sendNotification';
 
-/**
- * Example 1: Notify user when order is shipped
- */
 export async function notifyOrderShipped(order) {
   try {
     await sendNotification({
@@ -23,15 +13,10 @@ export async function notifyOrderShipped(order) {
         url: `/orders/${order.id}`
       }
     });
-  } catch (error) {
-    console.error('Failed to send order shipped notification:', error);
-    // Don't throw - notification failure shouldn't break order processing
+  } catch {
   }
 }
 
-/**
- * Example 2: Notify user of new message
- */
 export async function notifyNewMessage(recipientEmployeeId, senderName, messagePreview) {
   try {
     await sendNotification({
@@ -44,14 +29,10 @@ export async function notifyNewMessage(recipientEmployeeId, senderName, messageP
         url: '/messages'
       }
     });
-  } catch (error) {
-    console.error('Failed to send message notification:', error);
+  } catch {
   }
 }
 
-/**
- * Example 3: Notify team of task assignment
- */
 export async function notifyTaskAssignment(task, assigneeIds) {
   try {
     await sendNotificationToMultiple({
@@ -65,14 +46,10 @@ export async function notifyTaskAssignment(task, assigneeIds) {
         url: `/tasks/${task.id}`
       }
     });
-  } catch (error) {
-    console.error('Failed to send task assignment notifications:', error);
+  } catch {
   }
 }
 
-/**
- * Example 4: Notify user of approval needed
- */
 export async function notifyApprovalNeeded(approverEmployeeId, itemType, itemId, requesterName) {
   try {
     await sendNotification({
@@ -87,14 +64,10 @@ export async function notifyApprovalNeeded(approverEmployeeId, itemType, itemId,
         url: `/approvals/${itemId}`
       }
     });
-  } catch (error) {
-    console.error('Failed to send approval notification:', error);
+  } catch {
   }
 }
 
-/**
- * Example 5: Notify user of system alert
- */
 export async function notifySystemAlert(employeeId, alertType, message) {
   try {
     await sendNotification({
@@ -107,8 +80,7 @@ export async function notifySystemAlert(employeeId, alertType, message) {
         timestamp: new Date().toISOString()
       }
     });
-  } catch (error) {
-    console.error('Failed to send system alert:', error);
+  } catch {
   }
 }
 
