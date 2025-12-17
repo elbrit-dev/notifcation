@@ -35,7 +35,7 @@ function NovuInboxExample() {
       {/* Example 3: With explicit subscriber ID */}
       <div style={{ marginBottom: '40px' }}>
         <h3>Example 3: With Explicit Subscriber ID</h3>
-        <NovuInbox subscriberId="IN002" />
+        <NovuInbox subscriberId="IN003" />
       </div>
 
       {/* Example 4: Keyless mode for testing */}
@@ -60,10 +60,10 @@ function NovuInboxExample() {
         <p>Pass user data (firstName, lastName, email, phone, avatar, data) to Novu</p>
         <NovuInbox 
           userPayload={{
-            firstName: 'John',
-            lastName: 'Doe',
-            email: 'john.doe@example.com',
-            phone: '+1234567890',
+            firstName: 'Mounika',
+            lastName: 'M',
+            email: 'mounika@elbrit.org',
+            phone: '+919345405242',
             avatar: 'https://example.com/avatar.jpg',
             data: {
               department: 'Engineering',
