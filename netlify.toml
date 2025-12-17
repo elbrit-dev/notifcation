@@ -7,8 +7,9 @@
   # Note: Netlify doesn't support excluding env vars directly in config
   # The solution is to only set server-side env vars in Netlify UI (see NETLIFY_ENV_SETUP.md)
 
-[[plugins]]
-  package = "./netlify/plugins/filter-env-vars.js"
+# Plugin removed - file was empty and causing build errors
+# [[plugins]]
+#   package = "./netlify/plugins/filter-env-vars.js"
 
 [build.environment]
   # Build-time variables (available during build, embedded in bundle)

@@ -85,21 +85,9 @@ export default async function handler(req, res) {
       };
     }
     
-    console.log('📤 Triggering Novu notification:', {
-      workflowId: workflowIdentifier,
-      subscriberId: String(subscriberId),
-      payloadKeys: Object.keys(triggerPayload.payload),
-      to: triggerPayload.to
-    });
-    
-    // Correct format: novu.trigger(workflowId, { to, payload })
+    // Trigger notification using Novu workflow
     const result = await novu.trigger(workflowIdentifier, triggerPayload);
 
-    console.log('✅ Notification sent successfully:', {
-      subscriberId,
-      notificationId: result.data?.transactionId,
-      workflowId: workflowId || 'default'
-    });
 
     return res.status(200).json({
       success: true,
@@ -111,29 +99,20 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('❌ Error sending notification:', error);
-    console.error('Error details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      workflowId: workflowId || 'default',
-      subscriberId
-    });
+    console.error('Error sending notification:', error);
     
     // Handle specific Novu API errors
     if (error.response?.data) {
       return res.status(error.response.status || 500).json({
         error: 'Failed to send notification',
         details: error.response.data,
-        message: error.message,
-        workflowId: workflowId || 'default'
+        message: error.message
       });
     }
 
     return res.status(500).json({
       error: 'Failed to send notification',
-      message: error.message,
-      details: error.stack
+      message: error.message
     });
   }
 }
