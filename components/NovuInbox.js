@@ -162,11 +162,16 @@ const NovuInbox = ({
     return null;
   }
 
-  // Keyless mode for testing
-  if (keyless) {
+  // If keyless is explicitly false OR if we have an app identifier, use normal mode
+  // Only use keyless if explicitly set to true AND no app identifier is available
+  const shouldUseKeyless = keyless === true && !appIdentifier;
+
+  // Keyless mode for testing (only if explicitly requested AND no app identifier)
+  if (shouldUseKeyless) {
     if (typeof window !== 'undefined') {
       console.warn('[NovuInbox] ⚠️ KEYLESS MODE - Using keyless mode, subscriber payload will NOT be sent:', {
         keyless,
+        appIdentifier,
         otherProps: Object.keys(otherProps).length > 0 ? otherProps : 'none'
       });
     }
@@ -184,7 +189,7 @@ const NovuInbox = ({
         appIdentifier,
         applicationIdentifier,
         envVar: typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER : 'N/A',
-        'Note': 'This will cause Novu to use keyless mode automatically'
+        'Note': 'Set NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER=sCfOsfXhHZNc in your environment variables'
       });
     }
     return (
@@ -193,6 +198,8 @@ const NovuInbox = ({
           ⚠️ Novu Application Identifier not configured. 
           <br />
           Please set NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER in your environment variables.
+          <br />
+          <small>Expected value: sCfOsfXhHZNc</small>
         </div>
       </div>
     );
