@@ -41,7 +41,17 @@ const NovuInbox = ({
   const appIdentifier = applicationIdentifier || 
     (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER : null);
 
-  // Get subscriber ID from prop, auth context, or localStorage
+  // Hardcoded subscriber data for production
+  const hardcodedSubscriberData = {
+    subscriberId: 'IN003',
+    email: 'mounika@elbrit.org',
+    firstName: 'Mounika',
+    lastName: 'M',
+    phone: '+919345405242',
+    displayName: 'Mounika M'
+  };
+
+  // Get subscriber ID from prop, auth context, or hardcoded value
   const getSubscriberId = () => {
     if (subscriberId) return subscriberId;
     
@@ -53,10 +63,12 @@ const NovuInbox = ({
     
     // Fallback to localStorage
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('employeeId');
+      const storedId = localStorage.getItem('employeeId');
+      if (storedId) return storedId;
     }
     
-    return null;
+    // Final fallback: hardcoded value
+    return hardcodedSubscriberData.subscriberId;
   };
 
   const finalSubscriberId = getSubscriberId();
@@ -78,7 +90,7 @@ const NovuInbox = ({
       };
     }
 
-    // Otherwise, build from user data if available
+    // Otherwise, build from user data if available, or use hardcoded values
     if (user) {
       // Extract user data
       const firstName = user?.firstName || 
@@ -119,6 +131,12 @@ const NovuInbox = ({
           ...(user.employeeData || {})
         };
       }
+    } else {
+      // Use hardcoded values if no user data
+      subscriber.firstName = hardcodedSubscriberData.firstName;
+      subscriber.lastName = hardcodedSubscriberData.lastName;
+      subscriber.email = hardcodedSubscriberData.email;
+      subscriber.phone = hardcodedSubscriberData.phone;
     }
 
     return subscriber;
