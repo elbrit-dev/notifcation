@@ -65,17 +65,35 @@ export default async function handler(req, res) {
     
     const workflowIdentifier = workflowId || 'default';
     
-    // Novu trigger expects 'to' to be an object with subscriberId
-    const result = await novu.trigger(workflowIdentifier, {
+    // Novu trigger API format: novu.trigger(workflowId, { to, payload })
+    // The 'to' object can include subscriberId and subscriber data
+    const triggerPayload = {
       to: {
-        subscriberId: String(subscriberId) // Ensure it's a string
+        subscriberId: String(subscriberId)
       },
       payload: {
         title: String(title),
-        body: String(body),
-        ...(payload || {})
+        body: String(body)
       }
+    };
+    
+    // Add any additional payload data
+    if (payload && typeof payload === 'object') {
+      triggerPayload.payload = {
+        ...triggerPayload.payload,
+        ...payload
+      };
+    }
+    
+    console.log('📤 Triggering Novu notification:', {
+      workflowId: workflowIdentifier,
+      subscriberId: String(subscriberId),
+      payloadKeys: Object.keys(triggerPayload.payload),
+      to: triggerPayload.to
     });
+    
+    // Correct format: novu.trigger(workflowId, { to, payload })
+    const result = await novu.trigger(workflowIdentifier, triggerPayload);
 
     console.log('✅ Notification sent successfully:', {
       subscriberId,

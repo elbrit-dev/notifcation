@@ -45,9 +45,16 @@ export default async function handler(req, res) {
     }
 
     // Send test notification
+    // Correct format: novu.trigger(workflowId, { to, payload })
+    console.log('📤 Triggering test notification to:', testSubscriberId);
+    
     const result = await novu.trigger('default', {
       to: {
-        subscriberId: String(testSubscriberId) // Ensure it's a string
+        subscriberId: String(testSubscriberId),
+        email: 'mounika@elbrit.org',
+        firstName: 'Mounika',
+        lastName: 'M',
+        phone: '+919345405242'
       },
       payload: {
         title: 'Order Shipped',
