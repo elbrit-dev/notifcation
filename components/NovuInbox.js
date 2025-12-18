@@ -7,15 +7,32 @@ import { useAuth } from './AuthContext';
  * 
  * Displays real-time notifications for authenticated users using their employeeId as subscriber ID.
  * 
- * @param {Object} props - Component props
- * @param {string} props.applicationIdentifier - Novu application identifier (optional, uses env if not provided)
- * @param {string} props.subscriberId - Subscriber ID (optional, uses employeeId from auth if not provided)
- * @param {Object} props.userPayload - User payload object with firstName, lastName, email, phone, avatar, data (optional)
- * @param {string} props.backendUrl - Backend URL for EU region (optional)
- * @param {string} props.socketUrl - Socket URL for EU region (optional)
- * @param {string} props.className - Additional CSS classes
- * @param {Object} props.style - Inline styles
- * @param {boolean} props.keyless - Use keyless mode for testing (default: false)
+ * ALL PROPS ARE OPTIONAL - Component works with zero props if:
+ * - NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER is set in environment variables
+ * - User is authenticated (gets subscriberId from AuthContext automatically)
+ * - User data is available in AuthContext (builds subscriber object automatically)
+ * 
+ * @param {Object} props - Component props (all optional)
+ * @param {string} [props.applicationIdentifier] - Novu application identifier (falls back to NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER env var)
+ * @param {string} [props.subscriberId] - Subscriber ID (falls back to user.employeeId from AuthContext or localStorage)
+ * @param {Object} [props.userPayload] - User payload object with firstName, lastName, email, phone, avatar, data (falls back to AuthContext user data)
+ * @param {string} [props.backendUrl] - Backend URL for EU region (falls back to NEXT_PUBLIC_NOVU_BACKEND_URL env var, only needed for EU)
+ * @param {string} [props.socketUrl] - Socket URL for EU region (falls back to NEXT_PUBLIC_NOVU_SOCKET_URL env var, only needed for EU)
+ * @param {string} [props.className] - Additional CSS classes (default: '')
+ * @param {Object} [props.style] - Inline styles (default: {})
+ * @param {boolean} [props.keyless] - Use keyless mode for testing (default: false, shows demo notifications only)
+ * 
+ * @example
+ * // Simplest usage - works with zero props if env vars and auth are set up
+ * <NovuInbox />
+ * 
+ * @example
+ * // With custom subscriber ID
+ * <NovuInbox subscriberId="IN003" />
+ * 
+ * @example
+ * // With custom user payload
+ * <NovuInbox userPayload={{ firstName: 'John', email: 'john@example.com' }} />
  */
 const NovuInbox = ({
   applicationIdentifier = null,
