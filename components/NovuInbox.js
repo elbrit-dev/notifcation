@@ -30,6 +30,7 @@ const NovuInbox = ({
 }) => {
   const { user, isAuthenticated, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
+  const [inboxError, setInboxError] = useState(null);
 
 
   // Ensure component only renders on client side
@@ -197,6 +198,23 @@ const NovuInbox = ({
   }
 
 
+  // Log subscriber info for debugging
+  useEffect(() => {
+    if (finalSubscriberId && subscriberObject) {
+      console.log('📬 Novu Inbox initializing with:', {
+        subscriberId: finalSubscriberId,
+        applicationIdentifier: appIdentifier,
+        subscriber: subscriberObject
+      });
+      
+      // Check if subscriber exists - log warning if not
+      console.log('💡 If you see 400 errors, make sure subscriber exists in Novu:');
+      console.log('   Subscriber ID:', finalSubscriberId);
+      console.log('   Create subscriber at: /api/novu/create-subscriber');
+    }
+  }, [finalSubscriberId, subscriberObject, appIdentifier]);
+
+  // Wrap Inbox in try-catch for better error handling
   return (
     <div className={className} style={style}>
       <Inbox {...inboxProps} />
