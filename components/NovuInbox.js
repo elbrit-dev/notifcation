@@ -60,16 +60,20 @@ const NovuInbox = ({
     return null;
   }
 
-  // Get application identifier from env or prop (only after client check)
+  // Get application identifier - use static default if not provided
+  // Static default: sCfOsfXhHZNc (as requested)
   const appIdentifier = applicationIdentifier || 
-    (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER : null);
+    (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER : null) ||
+    'sCfOsfXhHZNc'; // Static default value
 
-  // Get subscriber ID from prop, auth context, or localStorage (client-only)
+  // Get subscriber ID - use static default if not provided
+  // Static default: IN003 (as requested)
   const getSubscriberId = () => {
+    // Use prop if provided
     if (subscriberId) return subscriberId;
     
+    // Try to get from user if authenticated
     if (user) {
-      // Get employeeId from user data
       const empId = user?.customProperties?.employeeId || user?.uid || user?.employeeData?.name;
       if (empId) return empId;
     }
@@ -77,13 +81,15 @@ const NovuInbox = ({
     // Fallback to localStorage (only on client)
     if (typeof window !== 'undefined') {
       try {
-        return localStorage.getItem('employeeId');
+        const storedId = localStorage.getItem('employeeId');
+        if (storedId) return storedId;
       } catch (e) {
-        return null;
+        // Ignore localStorage errors
       }
     }
     
-    return null;
+    // Static default: IN003 (works without login)
+    return 'IN003';
   };
 
   const finalSubscriberId = getSubscriberId();
@@ -208,44 +214,20 @@ const NovuInbox = ({
     );
   }
 
-  // If subscriberId is provided as prop, allow bypassing authentication check
-  // This allows using static subscriberId (like "IN003") without requiring login
-  const hasStaticSubscriberId = subscriberId && subscriberId.trim() !== '';
-  
-  // Build subscriber object - use static values if provided, otherwise require auth
+  // Build subscriber object - always create one since we have static defaults
+  // This allows working without authentication
   let finalSubscriberObject = subscriberObject;
   
-  // If static subscriberId provided but no subscriber object, create one
-  if (hasStaticSubscriberId && !finalSubscriberObject) {
+  // If no subscriber object built, create one with static subscriberId
+  if (!finalSubscriberObject && finalSubscriberId) {
     finalSubscriberObject = {
-      subscriberId: subscriberId
+      subscriberId: finalSubscriberId
     };
     
     // Add userPayload if provided
     if (userPayload && typeof userPayload === 'object') {
       Object.assign(finalSubscriberObject, userPayload);
     }
-  }
-  
-  // If no subscriber object and no static subscriberId, require authentication
-  if (!finalSubscriberObject && !hasStaticSubscriberId) {
-    if (loading) {
-      return (
-        <div className={className} style={style}>
-          <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-            Loading notifications...
-          </div>
-        </div>
-      );
-    }
-    
-    return (
-      <div className={className} style={style}>
-        <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-          Please log in to view notifications.
-        </div>
-      </div>
-    );
   }
   
   // Must have subscriber object to proceed
@@ -275,23 +257,22 @@ const NovuInbox = ({
     inboxProps.socketUrl = finalSocketUrl;
   }
 
-
-  // Log subscriber info for debugging (only after mount)
-  useEffect(() => {
-    if (mounted && finalSubscriberObject) {
+  // Log subscriber info for debugging (using direct console.log to avoid hook issues)
+  if (mounted && finalSubscriberObject && typeof window !== 'undefined') {
+    // Only log once per component mount
+    if (!window._novuInboxLogged) {
       console.log('📬 Novu Inbox initializing with:', {
         subscriberId: finalSubscriberObject.subscriberId,
         applicationIdentifier: appIdentifier,
-        subscriber: finalSubscriberObject,
-        usingStaticValues: hasStaticSubscriberId
+        subscriber: finalSubscriberObject
       });
       
-      // Check if subscriber exists - log warning if not
       console.log('💡 If you see 400 errors, make sure subscriber exists in Novu:');
       console.log('   Subscriber ID:', finalSubscriberObject.subscriberId);
       console.log('   Create subscriber at: /api/novu/create-subscriber');
+      window._novuInboxLogged = true;
     }
-  }, [mounted, finalSubscriberObject, appIdentifier, hasStaticSubscriberId]);
+  }
 
   // Render Inbox (component already checks mounted state above)
   return (
