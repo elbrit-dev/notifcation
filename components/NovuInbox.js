@@ -30,20 +30,21 @@ const NovuInbox = ({
 }) => {
   const { user, isAuthenticated, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
-  const [inboxError, setInboxError] = useState(null);
-
 
   // Ensure component only renders on client side
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Get application identifier from env or prop
+  // Get application identifier from env or prop (SSR-safe)
   const appIdentifier = applicationIdentifier || 
     (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER : null);
 
-  // Get subscriber ID from prop, auth context, or localStorage
+  // Get subscriber ID from prop, auth context, or localStorage (SSR-safe)
   const getSubscriberId = () => {
+    // Only access localStorage after mount
+    if (!mounted) return null;
+    
     if (subscriberId) return subscriberId;
     
     if (user) {
@@ -52,9 +53,13 @@ const NovuInbox = ({
       if (empId) return empId;
     }
     
-    // Fallback to localStorage
+    // Fallback to localStorage (only on client)
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('employeeId');
+      try {
+        return localStorage.getItem('employeeId');
+      } catch (e) {
+        return null;
+      }
     }
     
     return null;
@@ -62,9 +67,10 @@ const NovuInbox = ({
 
   const finalSubscriberId = getSubscriberId();
 
-  // Build subscriber object with payload
+  // Build subscriber object with payload (SSR-safe)
   const buildSubscriberObject = () => {
-    if (!finalSubscriberId) return null;
+    // Only build after mount to avoid hydration issues
+    if (!mounted || !finalSubscriberId) return null;
 
     // Start with subscriberId
     const subscriber = {
@@ -79,7 +85,7 @@ const NovuInbox = ({
       };
     }
 
-    // Otherwise, build from user data if available, or use hardcoded values
+    // Otherwise, build from user data if available
     if (user) {
       // Extract user data
       const firstName = user?.firstName || 
@@ -127,11 +133,11 @@ const NovuInbox = ({
 
   const subscriberObject = buildSubscriberObject();
 
-  // Get EU region URLs from env if not provided
+  // Get EU region URLs from env if not provided (SSR-safe)
   const finalBackendUrl = backendUrl || 
-    (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_BACKEND_URL : null);
+    (mounted && typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_BACKEND_URL : null);
   const finalSocketUrl = socketUrl || 
-    (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_SOCKET_URL : null);
+    (mounted && typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_SOCKET_URL : null);
 
 
   // Don't render until mounted (client-side only)
@@ -139,8 +145,10 @@ const NovuInbox = ({
     return null;
   }
 
-  // Keyless mode for testing
+  // Keyless mode for testing (shows demo notifications, not real ones)
   if (keyless) {
+    console.warn('⚠️ Novu Inbox is in KEYLESS MODE - showing demo notifications only!');
+    console.warn('💡 To see real notifications, disable keyless mode in Plasmic settings');
     return (
       <div className={className} style={style}>
         <Inbox {...otherProps} />
@@ -198,9 +206,9 @@ const NovuInbox = ({
   }
 
 
-  // Log subscriber info for debugging
+  // Log subscriber info for debugging (only after mount)
   useEffect(() => {
-    if (finalSubscriberId && subscriberObject) {
+    if (mounted && finalSubscriberId && subscriberObject) {
       console.log('📬 Novu Inbox initializing with:', {
         subscriberId: finalSubscriberId,
         applicationIdentifier: appIdentifier,
@@ -212,9 +220,9 @@ const NovuInbox = ({
       console.log('   Subscriber ID:', finalSubscriberId);
       console.log('   Create subscriber at: /api/novu/create-subscriber');
     }
-  }, [finalSubscriberId, subscriberObject, appIdentifier]);
+  }, [mounted, finalSubscriberId, subscriberObject, appIdentifier]);
 
-  // Wrap Inbox in try-catch for better error handling
+  // Render Inbox (component already checks mounted state above)
   return (
     <div className={className} style={style}>
       <Inbox {...inboxProps} />
