@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Inbox } from '@novu/nextjs';
+import dynamic from 'next/dynamic';
 import { useAuth } from './AuthContext';
+
+// Dynamically import Inbox component with no SSR to prevent hydration errors
+const Inbox = dynamic(
+  () => import('@novu/nextjs').then(mod => mod.Inbox),
+  { 
+    ssr: false,
+    loading: () => null
+  }
+);
 
 /**
  * NovuInbox - A notification inbox component for Novu
@@ -45,6 +54,7 @@ const NovuInbox = ({
   keyless = false,
   ...otherProps
 }) => {
+  // CRITICAL: Always call hooks first (React rules)
   const { user, isAuthenticated, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
 
@@ -53,15 +63,18 @@ const NovuInbox = ({
     setMounted(true);
   }, []);
 
-  // Get application identifier from env or prop (SSR-safe)
+  // Return null during SSR to prevent hydration mismatch
+  // This must come AFTER all hooks are called
+  if (typeof window === 'undefined' || !mounted) {
+    return null;
+  }
+
+  // Get application identifier from env or prop (only after client check)
   const appIdentifier = applicationIdentifier || 
     (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_APPLICATION_IDENTIFIER : null);
 
-  // Get subscriber ID from prop, auth context, or localStorage (SSR-safe)
+  // Get subscriber ID from prop, auth context, or localStorage (client-only)
   const getSubscriberId = () => {
-    // Only access localStorage after mount
-    if (!mounted) return null;
-    
     if (subscriberId) return subscriberId;
     
     if (user) {
@@ -84,10 +97,9 @@ const NovuInbox = ({
 
   const finalSubscriberId = getSubscriberId();
 
-  // Build subscriber object with payload (SSR-safe)
+  // Build subscriber object with payload (client-only)
   const buildSubscriberObject = () => {
-    // Only build after mount to avoid hydration issues
-    if (!mounted || !finalSubscriberId) return null;
+    if (!finalSubscriberId) return null;
 
     // Start with subscriberId
     const subscriber = {
@@ -150,17 +162,11 @@ const NovuInbox = ({
 
   const subscriberObject = buildSubscriberObject();
 
-  // Get EU region URLs from env if not provided (SSR-safe)
+  // Get EU region URLs from env if not provided (client-only)
   const finalBackendUrl = backendUrl || 
-    (mounted && typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_BACKEND_URL : null);
+    (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_BACKEND_URL : null);
   const finalSocketUrl = socketUrl || 
-    (mounted && typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_SOCKET_URL : null);
-
-
-  // Don't render until mounted (client-side only)
-  if (!mounted) {
-    return null;
-  }
+    (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_SOCKET_URL : null);
 
   // Keyless mode for testing (shows demo notifications, not real ones)
   if (keyless) {
