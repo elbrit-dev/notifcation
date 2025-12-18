@@ -48,6 +48,13 @@ export default async function handler(req, res) {
       externalId
     });
 
+    // Use REST API directly (same approach as auth.js)
+    const headers = {
+      Authorization: `ApiKey ${novuSecretKey}`,
+      'Content-Type': 'application/json',
+      'idempotency-key': subscriberId
+    };
+
     const subscriberPayload = {
       subscriberId: String(subscriberId),
       email: email || null,
@@ -55,7 +62,7 @@ export default async function handler(req, res) {
       lastName: lastName || null,
     };
 
-    // Add external ID if provided
+    // Add data field if externalId is provided
     if (externalId) {
       subscriberPayload.data = {
         externalId: externalId
@@ -63,14 +70,36 @@ export default async function handler(req, res) {
     }
 
     try {
-      // Create subscriber (will update if exists)
-      await novu.subscribers.identify(subscriberId, {
-        email: email || undefined,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
-        data: externalId ? { externalId } : undefined
+      // Create subscriber (ignore if already exists)
+      const createRes = await fetch(`https://api.novu.co/v2/subscribers?failIfExists=true`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(subscriberPayload)
       });
-      console.log('✅ Novu subscriber profile created/updated:', subscriberId);
+
+      if (createRes.ok) {
+        console.log('✅ Novu subscriber created successfully:', subscriberId);
+      } else if (createRes.status === 409) {
+        console.log('ℹ️ Novu subscriber already exists, will update:', subscriberId);
+      } else {
+        const errText = await createRes.text();
+        console.warn('⚠️ Novu subscriber create failed:', createRes.status, errText);
+      }
+
+      // Update to ensure latest profile data
+      const updateRes = await fetch(`https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(subscriberPayload)
+      });
+
+      if (updateRes.ok) {
+        console.log('✅ Novu subscriber updated successfully:', subscriberId);
+      } else {
+        const errText = await updateRes.text();
+        console.warn('⚠️ Novu subscriber update failed:', updateRes.status, errText);
+        // Don't fail if update fails - subscriber might have been created
+      }
     } catch (subError) {
       console.error('❌ Error creating subscriber profile:', subError);
       return res.status(500).json({
