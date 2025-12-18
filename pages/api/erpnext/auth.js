@@ -398,16 +398,17 @@ export default async function handler(req, res) {
             email: userData.email || null,
             phone: userData.phoneNumber || null,
             novuSecretKey
+
           });
 
-          // Then update credentials with OneSignal device tokens if player ID is available
-          if (oneSignalPlayerId) {
+          // Then update credentials with OneSignal device tokens if subscription ID is available
+          if (oneSignalSubscriptionId) {
           const integrationIdentifier = process.env.NOVU_INTEGRATION_IDENTIFIER || process.env.NEXT_PUBLIC_NOVU_INTEGRATION_IDENTIFIER || null;
 
           const updateParams = {
             providerId: ChatOrPushProviderEnum.OneSignal,
             credentials: {
-              deviceTokens: [oneSignalPlayerId], // Use player ID (onesignalId) for device tokens
+              deviceTokens: [oneSignalSubscriptionId], // Use subscription ID (PushSubscription.id) for device tokens
             },
           };
 
@@ -425,7 +426,7 @@ export default async function handler(req, res) {
             integrationIdentifier,
           });
         } else {
-            console.log('ℹ️ OneSignal player ID not available - subscriber created but credentials not updated');
+            console.log('ℹ️ OneSignal subscription ID not available - subscriber created but credentials not updated');
           }
 
           console.log('✅ Novu subscriber created/updated:', {
