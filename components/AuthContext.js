@@ -129,6 +129,8 @@ export const AuthProvider = ({ children }) => {
         const storedAuthMethod = localStorage.getItem('authMethod');
         const storedUserAvatar = localStorage.getItem('userAvatar');
         const storedUserInitial = localStorage.getItem('userInitial');
+        const storedEmployeeId = localStorage.getItem('employeeId');
+        const storedKlyRoleId = localStorage.getItem('klyRoleId');
         
         if (storedToken && storedUser && storedAuthType === 'erpnext') {
           const parsedUser = JSON.parse(storedUser);
@@ -143,9 +145,11 @@ export const AuthProvider = ({ children }) => {
             userEmail: parsedUser.email,
             userRole: parsedUser.role,
             userAvatar: storedUserAvatar ? 'Available' : 'Not available',
-            userInitial: storedUserInitial
+            userInitial: storedUserInitial,
+            employeeId: storedEmployeeId,
+            klyRoleId: storedKlyRoleId
           });
-        }
+        }//employeeId and klyRoleId are stored in localStorage and used to identify the user and their role
         
         // Set phone number if available
         if (storedPhoneNumber) {
@@ -273,15 +277,39 @@ export const AuthProvider = ({ children }) => {
                   console.log('✅ OneSignal Player ID retrieved:', oneSignalPlayerId);
                 }
                 
-                // Get subscription ID (PushSubscription.id) - used as subscriber ID
+                // Get subscription ID (PushSubscription.id) and token (PushSubscription.token)
                 // Wait a bit more for subscription to be created
                 await new Promise((resolve) => setTimeout(resolve, 700));
-                oneSignalSubscriptionId = await window.OneSignal.User.PushSubscription.id;
-                if (oneSignalSubscriptionId) {
-                  console.log('✅ OneSignal Subscription ID retrieved:', oneSignalSubscriptionId);
-                } else if (oneSignalPlayerId) {
-                  oneSignalSubscriptionId = oneSignalPlayerId;
-                  console.log('ℹ️ Using OneSignal player ID as fallback subscriber ID');
+                
+                const pushSubscription = window.OneSignal.User.PushSubscription;
+                if (pushSubscription) {
+                  // Try to get the subscription ID
+                  oneSignalSubscriptionId = await pushSubscription.id;
+                  
+                  // Also try to get the push token (this is the actual device token)
+                  try {
+                    const pushToken = await pushSubscription.token;
+                    if (pushToken) {
+                      console.log('✅ OneSignal Push Token retrieved:', pushToken);
+                      // Use push token as subscription ID if available (this is the actual device token)
+                      oneSignalSubscriptionId = pushToken;
+                    }
+                  } catch (tokenErr) {
+                    console.log('ℹ️ Push token not available, using subscription ID');
+                  }
+                  
+                  if (oneSignalSubscriptionId) {
+                    console.log('✅ OneSignal Subscription ID/Token retrieved:', oneSignalSubscriptionId);
+                  } else if (oneSignalPlayerId) {
+                    oneSignalSubscriptionId = oneSignalPlayerId;
+                    console.log('ℹ️ Using OneSignal player ID as fallback');
+                  }
+                } else {
+                  console.warn('⚠️ PushSubscription not available');
+                  if (oneSignalPlayerId) {
+                    oneSignalSubscriptionId = oneSignalPlayerId;
+                    console.log('ℹ️ Using OneSignal player ID as fallback');
+                  }
                 }
               } catch (error) {
                 console.warn('⚠️ Could not retrieve OneSignal IDs:', error);

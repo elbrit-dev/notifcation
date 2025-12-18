@@ -401,14 +401,15 @@ export default async function handler(req, res) {
 
           });
 
-          // Then update credentials with OneSignal device tokens if subscription ID is available
+          // Then update credentials with OneSignal device tokens if subscription ID/token is available
+          // Note: Novu expects OneSignal player_id, but we're using subscription token/ID as requested
           if (oneSignalSubscriptionId) {
           const integrationIdentifier = process.env.NOVU_INTEGRATION_IDENTIFIER || process.env.NEXT_PUBLIC_NOVU_INTEGRATION_IDENTIFIER || null;
 
           const updateParams = {
             providerId: ChatOrPushProviderEnum.OneSignal,
             credentials: {
-              deviceTokens: [oneSignalSubscriptionId], // Use subscription ID (PushSubscription.id) for device tokens
+              deviceTokens: [oneSignalSubscriptionId], // Using subscription ID/token (PushSubscription.id or PushSubscription.token)
             },
           };
 
@@ -417,16 +418,57 @@ export default async function handler(req, res) {
             updateParams.integrationIdentifier = integrationIdentifier;
           }
 
-          await novu.subscribers.credentials.update(updateParams, subscriberId);
+          try {
+            await novu.subscribers.credentials.update(updateParams, subscriberId);
 
-          console.log('✅ Novu subscriber credentials updated successfully:', {
-            subscriberId,
-            playerId: oneSignalPlayerId,
-            subscriptionId: oneSignalSubscriptionId,
-            integrationIdentifier,
-          });
+            console.log('✅ Novu subscriber credentials updated successfully:', {
+              subscriberId,
+              playerId: oneSignalPlayerId,
+              subscriptionId: oneSignalSubscriptionId,
+              integrationIdentifier,
+              deviceTokenUsed: oneSignalSubscriptionId,
+            });
+          } catch (credError) {
+            console.error('❌ Error updating Novu credentials:', credError);
+            // If subscription ID fails, try with player ID as fallback
+            if (oneSignalPlayerId && oneSignalPlayerId !== oneSignalSubscriptionId) {
+              console.log('🔄 Attempting fallback with player ID...');
+              try {
+                const fallbackParams = {
+                  ...updateParams,
+                  credentials: {
+                    deviceTokens: [oneSignalPlayerId],
+                  },
+                };
+                await novu.subscribers.credentials.update(fallbackParams, subscriberId);
+                console.log('✅ Novu credentials updated with player ID fallback:', oneSignalPlayerId);
+              } catch (fallbackError) {
+                console.error('❌ Fallback also failed:', fallbackError);
+              }
+            }
+          }
         } else {
-            console.log('ℹ️ OneSignal subscription ID not available - subscriber created but credentials not updated');
+            console.log('ℹ️ OneSignal subscription ID/token not available - subscriber created but credentials not updated');
+            // Try with player ID if available
+            if (oneSignalPlayerId) {
+              console.log('🔄 Attempting to update credentials with player ID...');
+              try {
+                const integrationIdentifier = process.env.NOVU_INTEGRATION_IDENTIFIER || process.env.NEXT_PUBLIC_NOVU_INTEGRATION_IDENTIFIER || null;
+                const updateParams = {
+                  providerId: ChatOrPushProviderEnum.OneSignal,
+                  credentials: {
+                    deviceTokens: [oneSignalPlayerId],
+                  },
+                };
+                if (integrationIdentifier) {
+                  updateParams.integrationIdentifier = integrationIdentifier;
+                }
+                await novu.subscribers.credentials.update(updateParams, subscriberId);
+                console.log('✅ Novu credentials updated with player ID:', oneSignalPlayerId);
+              } catch (playerIdError) {
+                console.error('❌ Failed to update with player ID:', playerIdError);
+              }
+            }
           }
 
           console.log('✅ Novu subscriber created/updated:', {
