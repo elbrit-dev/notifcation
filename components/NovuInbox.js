@@ -1,15 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import { Inbox } from '@novu/nextjs';
 import { useAuth } from './AuthContext';
-
-// Dynamically import Inbox component with no SSR to prevent hydration errors
-const Inbox = dynamic(
-  () => import('@novu/nextjs').then(mod => mod.Inbox),
-  { 
-    ssr: false,
-    loading: () => null
-  }
-);
 
 /**
  * NovuInbox - A notification inbox component for Novu
@@ -169,15 +160,40 @@ const NovuInbox = ({
     (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_SOCKET_URL : null);
 
   // Keyless mode for testing (shows demo notifications, not real ones)
+  // In keyless mode, we don't require authentication or subscriber
   if (keyless) {
     console.warn('⚠️ Novu Inbox is in KEYLESS MODE - showing demo notifications only!');
     console.warn('💡 To see real notifications, disable keyless mode in Plasmic settings');
+    
+    // Build keyless props - still pass applicationIdentifier if available for better demo
+    const keylessProps = {
+      ...otherProps
+    };
+    
+    // If application identifier is available, pass it (optional for keyless mode)
+    if (appIdentifier) {
+      keylessProps.applicationIdentifier = appIdentifier;
+    }
+    
+    // Add EU region URLs if provided
+    if (finalBackendUrl) {
+      keylessProps.backendUrl = finalBackendUrl;
+    }
+    if (finalSocketUrl) {
+      keylessProps.socketUrl = finalSocketUrl;
+    }
+    
+    // Keyless mode: No subscriber required, shows demo notifications
     return (
       <div className={className} style={style}>
-        <Inbox {...otherProps} />
+        <Inbox {...keylessProps} />
       </div>
     );
   }
+
+  // REAL-TIME NOTIFICATIONS MODE (keyless = false)
+  // When keyless is disabled, we use real subscriber data for live notifications
+  // This requires: authentication, subscriber ID, and application identifier
 
   // If no application identifier, show message
   if (!appIdentifier) {
@@ -192,8 +208,27 @@ const NovuInbox = ({
     );
   }
 
-  // If not authenticated or no subscriber ID, show message
-  if (!isAuthenticated || !finalSubscriberId || !subscriberObject) {
+  // If subscriberId is provided as prop, allow bypassing authentication check
+  // This allows using static subscriberId (like "IN003") without requiring login
+  const hasStaticSubscriberId = subscriberId && subscriberId.trim() !== '';
+  
+  // Build subscriber object - use static values if provided, otherwise require auth
+  let finalSubscriberObject = subscriberObject;
+  
+  // If static subscriberId provided but no subscriber object, create one
+  if (hasStaticSubscriberId && !finalSubscriberObject) {
+    finalSubscriberObject = {
+      subscriberId: subscriberId
+    };
+    
+    // Add userPayload if provided
+    if (userPayload && typeof userPayload === 'object') {
+      Object.assign(finalSubscriberObject, userPayload);
+    }
+  }
+  
+  // If no subscriber object and no static subscriberId, require authentication
+  if (!finalSubscriberObject && !hasStaticSubscriberId) {
     if (loading) {
       return (
         <div className={className} style={style}>
@@ -212,11 +247,23 @@ const NovuInbox = ({
       </div>
     );
   }
+  
+  // Must have subscriber object to proceed
+  if (!finalSubscriberObject) {
+    return (
+      <div className={className} style={style}>
+        <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+          Subscriber ID is required.
+        </div>
+      </div>
+    );
+  }
 
-  // Render Inbox with subscriber object (includes subscriberId and user payload)
+  // Render Inbox with subscriber object for REAL-TIME NOTIFICATIONS
+  // This passes the actual subscriber data to Novu for live notifications
   const inboxProps = {
     applicationIdentifier: appIdentifier,
-    subscriber: subscriberObject,
+    subscriber: finalSubscriberObject, // Subscriber with ID (from auth or static prop)
     ...otherProps
   };
 
@@ -231,19 +278,20 @@ const NovuInbox = ({
 
   // Log subscriber info for debugging (only after mount)
   useEffect(() => {
-    if (mounted && finalSubscriberId && subscriberObject) {
+    if (mounted && finalSubscriberObject) {
       console.log('📬 Novu Inbox initializing with:', {
-        subscriberId: finalSubscriberId,
+        subscriberId: finalSubscriberObject.subscriberId,
         applicationIdentifier: appIdentifier,
-        subscriber: subscriberObject
+        subscriber: finalSubscriberObject,
+        usingStaticValues: hasStaticSubscriberId
       });
       
       // Check if subscriber exists - log warning if not
       console.log('💡 If you see 400 errors, make sure subscriber exists in Novu:');
-      console.log('   Subscriber ID:', finalSubscriberId);
+      console.log('   Subscriber ID:', finalSubscriberObject.subscriberId);
       console.log('   Create subscriber at: /api/novu/create-subscriber');
     }
-  }, [mounted, finalSubscriberId, subscriberObject, appIdentifier]);
+  }, [mounted, finalSubscriberObject, appIdentifier, hasStaticSubscriberId]);
 
   // Render Inbox (component already checks mounted state above)
   return (
