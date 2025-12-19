@@ -1,5 +1,6 @@
 import '../styles/globals.css';
 import '../styles/PrintA3.css';
+import '../styles/novu-inbox.css';
 import { AuthProvider } from '../components/AuthContext';
 // Lazy-load Plasmic init so it doesn't block app bootstrap
 import dynamic from 'next/dynamic';

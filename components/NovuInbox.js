@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Inbox } from '@novu/nextjs';
 import { useAuth } from './AuthContext';
-import '../styles/novu-inbox.css';
 
 /**
  * NovuInbox - A notification inbox component for Novu
