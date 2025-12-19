@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Inbox } from '@novu/nextjs';
 import { useAuth } from './AuthContext';
 
@@ -48,6 +48,33 @@ const NovuInbox = ({
   // CRITICAL: Always call hooks first (React rules)
   const { user, isAuthenticated, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
+
+  // Define tabs with filters - use useMemo at top level (before early returns)
+  // Tabs: All, Approval, Appointment
+  const tabs = useMemo(() => [
+    {
+      label: 'All',
+      filter: {}, // No filter - show all notifications
+    },
+    {
+      label: 'Approval',
+      filter: {
+        // Filter by tags (workflow tags) OR data attributes (payload data)
+        // If using tags, add "approval" tag to your workflow in Novu dashboard
+        // If using data, include type: 'approval' in notification payload
+        tags: ['approval'],
+        // Alternative: data: { type: 'approval' } or data: { category: 'approval' }
+      },
+    },
+    {
+      label: 'Appointment',
+      filter: {
+        // Filter by tags (workflow tags) OR data attributes (payload data)
+        tags: ['appointment'],
+        // Alternative: data: { type: 'appointment' } or data: { category: 'appointment' }
+      },
+    },
+  ], []); // Empty dependency array - tabs don't change
 
   // Ensure component only renders on client side
   useEffect(() => {
@@ -190,6 +217,9 @@ const NovuInbox = ({
     }
     
     // Keyless mode: No subscriber required, shows demo notifications
+    // Add tabs even in keyless mode
+    keylessProps.tabs = tabs;
+    
     return (
       <div className={className} style={style}>
         <Inbox {...keylessProps} />
@@ -247,6 +277,7 @@ const NovuInbox = ({
   const inboxProps = {
     applicationIdentifier: appIdentifier,
     subscriber: finalSubscriberObject, // Subscriber with ID (from auth or static prop)
+    tabs: tabs, // Add tabs: All, Approval, Appointment
     ...otherProps
   };
 
