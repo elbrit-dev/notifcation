@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Inbox } from '@novu/nextjs';
 import { useAuth } from './AuthContext';
+import '../styles/novu-inbox.css';
 
 /**
  * NovuInbox - A notification inbox component for Novu
@@ -59,19 +60,19 @@ const NovuInbox = ({
     {
       label: 'Approval',
       filter: {
-        // Filter by tags (workflow tags) OR data attributes (payload data)
-        // If using tags, add "approval" tag to your workflow in Novu dashboard
-        // If using data, include type: 'approval' in notification payload
-        tags: ['approval'],
-        // Alternative: data: { type: 'approval' } or data: { category: 'approval' }
+        // Filter by data attributes in payload (recommended)
+        // Include type: 'approval' or category: 'approval' in notification payload
+        data: { type: 'approval' },
+        // Alternative: tags: ['approval'] (requires workflow tag in Novu dashboard)
       },
     },
     {
       label: 'Appointment',
       filter: {
-        // Filter by tags (workflow tags) OR data attributes (payload data)
-        tags: ['appointment'],
-        // Alternative: data: { type: 'appointment' } or data: { category: 'appointment' }
+        // Filter by data attributes in payload (recommended)
+        // Include type: 'appointment' or category: 'appointment' in notification payload
+        data: { type: 'appointment' },
+        // Alternative: tags: ['appointment'] (requires workflow tag in Novu dashboard)
       },
     },
   ], []); // Empty dependency array - tabs don't change
@@ -221,7 +222,7 @@ const NovuInbox = ({
     keylessProps.tabs = tabs;
     
     return (
-      <div className={className} style={style}>
+      <div className={`novu-inbox-container ${className}`} style={style}>
         <Inbox {...keylessProps} />
       </div>
     );
@@ -308,7 +309,7 @@ const NovuInbox = ({
 
   // Render Inbox (component already checks mounted state above)
   return (
-    <div className={className} style={style}>
+    <div className={`novu-inbox-container ${className}`} style={style}>
       <Inbox {...inboxProps} />
     </div>
   );

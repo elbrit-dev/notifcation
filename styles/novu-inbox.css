@@ -1,0 +1,196 @@
+/* Novu Inbox Custom Styling */
+
+/* Main inbox container */
+.novu-inbox-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Notification item styling */
+.novu-inbox-container [class*="notification-item"],
+.novu-inbox-container [class*="notificationCard"] {
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.novu-inbox-container [class*="notification-item"]:hover,
+.novu-inbox-container [class*="notificationCard"]:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Notification icon - purple bell */
+.novu-inbox-container [class*="notification-icon"],
+.novu-inbox-container [class*="bell-icon"] {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 20px;
+  margin-right: 12px;
+}
+
+/* Notification title */
+.novu-inbox-container [class*="notification-title"],
+.novu-inbox-container h3,
+.novu-inbox-container [class*="title"] {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 4px 0;
+}
+
+/* Notification body/text */
+.novu-inbox-container [class*="notification-body"],
+.novu-inbox-container [class*="notification-text"],
+.novu-inbox-container p {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+/* Action buttons container */
+.novu-inbox-container [class*="action-buttons"],
+.novu-inbox-container [class*="buttons"] {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Primary action button - purple filled */
+.novu-inbox-container [class*="primary-button"],
+.novu-inbox-container button[class*="primary"],
+.novu-inbox-container [class*="action-button"]:first-child {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.novu-inbox-container [class*="primary-button"]:hover,
+.novu-inbox-container button[class*="primary"]:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);
+}
+
+/* Secondary action button - gray outlined */
+.novu-inbox-container [class*="secondary-button"],
+.novu-inbox-container button[class*="secondary"],
+.novu-inbox-container [class*="action-button"]:last-child {
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.novu-inbox-container [class*="secondary-button"]:hover,
+.novu-inbox-container button[class*="secondary"]:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  color: #374151;
+}
+
+/* Timestamp */
+.novu-inbox-container [class*="timestamp"],
+.novu-inbox-container [class*="time"],
+.novu-inbox-container time {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 8px;
+  display: block;
+}
+
+/* Tabs styling */
+.novu-inbox-container [class*="tabs"],
+.novu-inbox-container [class*="tab-list"] {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.novu-inbox-container [class*="tab"],
+.novu-inbox-container button[class*="tab"] {
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  bottom: -2px;
+}
+
+.novu-inbox-container [class*="tab"]:hover {
+  color: #8b5cf6;
+}
+
+.novu-inbox-container [class*="tab"][class*="active"],
+.novu-inbox-container [class*="tab-active"] {
+  color: #8b5cf6;
+  border-bottom-color: #8b5cf6;
+}
+
+/* Notification count badge */
+.novu-inbox-container [class*="badge"],
+.novu-inbox-container [class*="count"] {
+  background: #ef4444;
+  color: white;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+/* Empty state */
+.novu-inbox-container [class*="empty-state"],
+.novu-inbox-container [class*="no-notifications"] {
+  text-align: center;
+  padding: 40px 20px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* Scrollbar styling */
+.novu-inbox-container [class*="scrollable"]::-webkit-scrollbar {
+  width: 8px;
+}
+
+.novu-inbox-container [class*="scrollable"]::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.novu-inbox-container [class*="scrollable"]::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.novu-inbox-container [class*="scrollable"]::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
