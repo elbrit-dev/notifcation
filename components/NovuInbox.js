@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Inbox } from '@novu/nextjs';
 import { useAuth } from './AuthContext';
-import '../styles/novu-inbox.css';
 
 /**
  * NovuInbox - A notification inbox component for Novu
@@ -222,7 +221,7 @@ const NovuInbox = ({
     keylessProps.tabs = tabs;
     
     return (
-      <div className={`novu-inbox-container ${className}`} style={style}>
+      <div className={className} style={style}>
         <Inbox {...keylessProps} />
       </div>
     );
@@ -309,7 +308,7 @@ const NovuInbox = ({
 
   // Render Inbox (component already checks mounted state above)
   return (
-    <div className={`novu-inbox-container ${className}`} style={style}>
+    <div className={className} style={style}>
       <Inbox {...inboxProps} />
     </div>
   );
