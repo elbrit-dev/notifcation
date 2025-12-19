@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Inbox } from '@novu/nextjs';
 import { useAuth } from './AuthContext';
 
@@ -54,6 +54,27 @@ const NovuInbox = ({
     secondary: 0
   });
   const [loadingCounts, setLoadingCounts] = useState(false);
+
+  // Define tabs with filters and counts - use useMemo at top level (before early returns)
+  // This prevents hydration issues by memoizing the tabs array
+  const tabs = useMemo(() => [
+    {
+      label: `All Notifications${notificationCounts.all > 0 ? ` (${notificationCounts.all})` : ''}`,
+      filter: {}, // No filter - show all
+    },
+    {
+      label: `Primary${notificationCounts.primary > 0 ? ` (${notificationCounts.primary})` : ''}`,
+      filter: {
+        tags: ['primary'],
+      },
+    },
+    {
+      label: `Secondary${notificationCounts.secondary > 0 ? ` (${notificationCounts.secondary})` : ''}`,
+      filter: {
+        tags: ['secondary'],
+      },
+    },
+  ], [notificationCounts.all, notificationCounts.primary, notificationCounts.secondary]);
 
   // Ensure component only renders on client side
   useEffect(() => {
@@ -277,47 +298,19 @@ const NovuInbox = ({
     );
   }
 
-  // Define tabs with filters and counts
-  // Filters support both tags (from workflow) and data attributes (from payload)
-  const tabs = [
-    {
-      label: `All Notifications${notificationCounts.all > 0 ? ` (${notificationCounts.all})` : ''}`,
-      filter: {}, // No filter - show all
-    },
-    {
-      label: `Primary${notificationCounts.primary > 0 ? ` (${notificationCounts.primary})` : ''}`,
-      filter: {
-        // Filter by tags (workflow tags) OR data attributes (payload data)
-        // If using tags, add "primary" tag to your workflow in Novu dashboard
-        // If using data, include priority/type/category in notification payload
-        tags: ['primary'],
-        // Uncomment below if using data attributes instead:
-        // data: { priority: 'primary' }
-        // OR: data: { type: 'primary' }
-        // OR: data: { category: 'primary' }
-      },
-    },
-    {
-      label: `Secondary${notificationCounts.secondary > 0 ? ` (${notificationCounts.secondary})` : ''}`,
-      filter: {
-        // Filter by tags (workflow tags) OR data attributes (payload data)
-        tags: ['secondary'],
-        // Uncomment below if using data attributes instead:
-        // data: { priority: 'secondary' }
-        // OR: data: { type: 'secondary' }
-        // OR: data: { category: 'secondary' }
-      },
-    },
-  ];
 
   // Render Inbox with subscriber object for REAL-TIME NOTIFICATIONS
   // This passes the actual subscriber data to Novu for live notifications
   const inboxProps = {
     applicationIdentifier: appIdentifier,
     subscriber: finalSubscriberObject, // Subscriber with ID (from auth or static prop)
-    tabs: tabs, // Add tabs with filters and counts
     ...otherProps
   };
+
+  // Only add tabs when mounted and ready (prevents hydration issues)
+  if (mounted) {
+    inboxProps.tabs = tabs;
+  }
 
   // Add EU region URLs if provided
   if (finalBackendUrl) {
