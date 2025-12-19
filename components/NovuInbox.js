@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Inbox } from '@novu/nextjs';
 import { useAuth } from './AuthContext';
 
@@ -48,6 +48,12 @@ const NovuInbox = ({
   // CRITICAL: Always call hooks first (React rules)
   const { user, isAuthenticated, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
+  const [notificationCounts, setNotificationCounts] = useState({
+    all: 0,
+    primary: 0,
+    secondary: 0
+  });
+  const [loadingCounts, setLoadingCounts] = useState(false);
 
   // Ensure component only renders on client side
   useEffect(() => {
@@ -93,6 +99,36 @@ const NovuInbox = ({
   };
 
   const finalSubscriberId = getSubscriberId();
+
+  // Fetch notification counts for tabs
+  const fetchNotificationCounts = useCallback(async () => {
+    if (!finalSubscriberId || !mounted) return;
+
+    setLoadingCounts(true);
+    try {
+      const response = await fetch(`/api/notifications/counts?subscriberId=${encodeURIComponent(finalSubscriberId)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.counts) {
+          setNotificationCounts(data.counts);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch notification counts:', error);
+    } finally {
+      setLoadingCounts(false);
+    }
+  }, [finalSubscriberId, mounted]);
+
+  // Fetch counts on mount and periodically
+  useEffect(() => {
+    if (mounted && finalSubscriberId && !keyless) {
+      fetchNotificationCounts();
+      // Refresh counts every 30 seconds
+      const interval = setInterval(fetchNotificationCounts, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [mounted, finalSubscriberId, keyless, fetchNotificationCounts]);
 
   // Build subscriber object with payload (client-only)
   const buildSubscriberObject = () => {
@@ -241,11 +277,45 @@ const NovuInbox = ({
     );
   }
 
+  // Define tabs with filters and counts
+  // Filters support both tags (from workflow) and data attributes (from payload)
+  const tabs = [
+    {
+      label: `All Notifications${notificationCounts.all > 0 ? ` (${notificationCounts.all})` : ''}`,
+      filter: {}, // No filter - show all
+    },
+    {
+      label: `Primary${notificationCounts.primary > 0 ? ` (${notificationCounts.primary})` : ''}`,
+      filter: {
+        // Filter by tags (workflow tags) OR data attributes (payload data)
+        // If using tags, add "primary" tag to your workflow in Novu dashboard
+        // If using data, include priority/type/category in notification payload
+        tags: ['primary'],
+        // Uncomment below if using data attributes instead:
+        // data: { priority: 'primary' }
+        // OR: data: { type: 'primary' }
+        // OR: data: { category: 'primary' }
+      },
+    },
+    {
+      label: `Secondary${notificationCounts.secondary > 0 ? ` (${notificationCounts.secondary})` : ''}`,
+      filter: {
+        // Filter by tags (workflow tags) OR data attributes (payload data)
+        tags: ['secondary'],
+        // Uncomment below if using data attributes instead:
+        // data: { priority: 'secondary' }
+        // OR: data: { type: 'secondary' }
+        // OR: data: { category: 'secondary' }
+      },
+    },
+  ];
+
   // Render Inbox with subscriber object for REAL-TIME NOTIFICATIONS
   // This passes the actual subscriber data to Novu for live notifications
   const inboxProps = {
     applicationIdentifier: appIdentifier,
     subscriber: finalSubscriberObject, // Subscriber with ID (from auth or static prop)
+    tabs: tabs, // Add tabs with filters and counts
     ...otherProps
   };
 
