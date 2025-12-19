@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Inbox } from '@novu/nextjs';
 import { useAuth } from './AuthContext';
 
@@ -48,33 +48,6 @@ const NovuInbox = ({
   // CRITICAL: Always call hooks first (React rules)
   const { user, isAuthenticated, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
-  const [notificationCounts, setNotificationCounts] = useState({
-    all: 0,
-    primary: 0,
-    secondary: 0
-  });
-  const [loadingCounts, setLoadingCounts] = useState(false);
-
-  // Define tabs with filters and counts - use useMemo at top level (before early returns)
-  // This prevents hydration issues by memoizing the tabs array
-  const tabs = useMemo(() => [
-    {
-      label: `All Notifications${notificationCounts.all > 0 ? ` (${notificationCounts.all})` : ''}`,
-      filter: {}, // No filter - show all
-    },
-    {
-      label: `Primary${notificationCounts.primary > 0 ? ` (${notificationCounts.primary})` : ''}`,
-      filter: {
-        tags: ['primary'],
-      },
-    },
-    {
-      label: `Secondary${notificationCounts.secondary > 0 ? ` (${notificationCounts.secondary})` : ''}`,
-      filter: {
-        tags: ['secondary'],
-      },
-    },
-  ], [notificationCounts.all, notificationCounts.primary, notificationCounts.secondary]);
 
   // Ensure component only renders on client side
   useEffect(() => {
@@ -120,36 +93,6 @@ const NovuInbox = ({
   };
 
   const finalSubscriberId = getSubscriberId();
-
-  // Fetch notification counts for tabs
-  const fetchNotificationCounts = useCallback(async () => {
-    if (!finalSubscriberId || !mounted) return;
-
-    setLoadingCounts(true);
-    try {
-      const response = await fetch(`/api/notifications/counts?subscriberId=${encodeURIComponent(finalSubscriberId)}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.counts) {
-          setNotificationCounts(data.counts);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch notification counts:', error);
-    } finally {
-      setLoadingCounts(false);
-    }
-  }, [finalSubscriberId, mounted]);
-
-  // Fetch counts on mount and periodically
-  useEffect(() => {
-    if (mounted && finalSubscriberId && !keyless) {
-      fetchNotificationCounts();
-      // Refresh counts every 30 seconds
-      const interval = setInterval(fetchNotificationCounts, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [mounted, finalSubscriberId, keyless, fetchNotificationCounts]);
 
   // Build subscriber object with payload (client-only)
   const buildSubscriberObject = () => {
@@ -306,11 +249,6 @@ const NovuInbox = ({
     subscriber: finalSubscriberObject, // Subscriber with ID (from auth or static prop)
     ...otherProps
   };
-
-  // Only add tabs when mounted and ready (prevents hydration issues)
-  if (mounted) {
-    inboxProps.tabs = tabs;
-  }
 
   // Add EU region URLs if provided
   if (finalBackendUrl) {
