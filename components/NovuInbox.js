@@ -64,18 +64,25 @@ const NovuInbox = ({
     {
       label: 'Approval',
       filter: {
-        // Filter by workflow tags (set in Novu Dashboard workflow settings)
-        // IMPORTANT: Make sure your workflow has "approval" tag in Novu Dashboard
-        // Go to: Workflows → Your Workflow → Settings → Tags → Add "approval"
-        tags: ['approval'],
+        // Filter by payload data structure (filters.tag)
+        // This ensures notifications only appear in Approval tab when payload.filters.tag === 'approval'
+        data: {
+          filters: {
+            tag: 'approval'
+          }
+        }
       },
     },
     {
       label: 'Appointment',
       filter: {
-        // Filter by workflow tags (set in Novu Dashboard workflow settings)
-        tags: ['appointment'],
-        // Alternative: data: { type: 'appointment' } (if using payload data instead)
+        // Filter by payload data structure (filters.tag)
+        // This ensures notifications only appear in Appointment tab when payload.filters.tag === 'appointment'
+        data: {
+          filters: {
+            tag: 'appointment'
+          }
+        }
       },
     },
   ], []); // Empty dependency array - tabs don't change
@@ -222,8 +229,35 @@ const NovuInbox = ({
     return false;
   };
 
-  // Notification handler to add actions for approval-tagged notifications only
+  // Helper function to check if notification has "appointment" tag
+  const hasAppointmentTag = (notification) => {
+    // Check multiple possible locations for the appointment tag
+    // Priority: payload.filters.tag > payload.tags > workflow.tags > tags
+    if (notification?.payload?.filters?.tag === 'appointment') {
+      return true;
+    }
+    if (notification?.payload?.tags?.includes('appointment')) {
+      return true;
+    }
+    if (notification?.workflow?.tags?.includes('appointment')) {
+      return true;
+    }
+    if (notification?.tags?.includes('appointment')) {
+      return true;
+    }
+    if (notification?.workflow?.identifier?.includes('appointment')) {
+      return true;
+    }
+    if (notification?.template?.tags?.includes('appointment')) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Notification handler to add actions for approval and appointment notifications
   const handleNotificationItemActions = (notification) => {
+    // Handle approval notifications
     if (hasApprovalTag(notification)) {
       return {
         primaryAction: {
@@ -243,14 +277,37 @@ const NovuInbox = ({
       };
     }
     
+    // Handle appointment notifications
+    if (hasAppointmentTag(notification)) {
+      return {
+        primaryAction: {
+          label: 'Accept',
+          redirect: {
+            url: notification?.payload?.primaryActionUrl || '#',
+            target: '_self',
+          },
+        },
+        secondaryAction: {
+          label: 'Decline',
+          redirect: {
+            url: notification?.payload?.secondaryActionUrl || '#',
+            target: '_self',
+          },
+        },
+      };
+    }
+    
     return null;
   };
 
-  // Custom notification renderer for approval-tagged notifications
-  // This displays custom subject, body, and image for approval notifications
+  // Custom notification renderer for approval and appointment-tagged notifications
+  // This displays custom subject, body, and image for these notifications
   const renderNotificationItem = (notification) => {
-    if (!hasApprovalTag(notification)) {
-      return null; // Use default rendering for non-approval notifications
+    const isApproval = hasApprovalTag(notification);
+    const isAppointment = hasAppointmentTag(notification);
+    
+    if (!isApproval && !isAppointment) {
+      return null; // Use default rendering for other notifications
     }
 
     // Static default values for approval notifications
@@ -262,16 +319,27 @@ const NovuInbox = ({
       },
     };
 
-    // Extract custom notification data for approval notifications
+    // Static default values for appointment notifications
+    const staticAppointmentData = {
+      body: 'You have a new appointment scheduled!',
+      title: 'Appointment Notification',
+      filters: {
+        tag: 'appointment',
+      },
+    };
+
+    // Extract custom notification data for approval/appointment notifications
+    const staticData = isApproval ? staticApprovalData : staticAppointmentData;
+    
     const notificationSubject = notification?.payload?.notificationSubject || 
                                  notification?.subject || 
                                  notification?.title || 
-                                 staticApprovalData.title;
+                                 staticData.title;
     
     const notificationBody = notification?.payload?.notificationBody || 
                             notification?.body || 
                             notification?.content || 
-                            staticApprovalData.body;
+                            staticData.body;
     
     const notificationImage = notification?.payload?.notificationImage || 
                               notification?.payload?.image || 
