@@ -48,7 +48,12 @@ const NovuInbox = ({
   // CRITICAL: Always call hooks first (React rules)
   const { user, isAuthenticated, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
-
+  const appearance = {
+    variables: {
+      colorBackground: '#f0f0f0',
+      borderRadius: '8px',
+    },
+  };
   // Define tabs with filters - use useMemo at top level (before early returns)
   // Tabs: All, Approval, Appointment
   const tabs = useMemo(() => [
@@ -270,12 +275,42 @@ const NovuInbox = ({
   }
 
 
+  // Notification handler to add actions for approval-tagged notifications
+  const handleNotificationItemActions = (notification) => {
+    // Check if notification has "approval" tag
+    const hasApprovalTag = notification?.tags?.includes('approval') || 
+                          notification?.workflow?.tags?.includes('approval') ||
+                          notification?.payload?.tags?.includes('approval');
+    
+    if (hasApprovalTag) {
+      return {
+        primaryAction: {
+          label: 'Approve',
+          redirect: {
+           
+            target: '_self',
+          },
+        },
+        secondaryAction: {
+          label: 'Appointment',
+          redirect: {
+           
+            target: '_self',
+          },
+        },
+      };
+    }
+    
+    return null;
+  };
+
   // Render Inbox with subscriber object for REAL-TIME NOTIFICATIONS
   // This passes the actual subscriber data to Novu for live notifications
   const inboxProps = {
     applicationIdentifier: appIdentifier,
     subscriber: finalSubscriberObject, // Subscriber with ID (from auth or static prop)
     tabs: tabs, // Add tabs: All, Approval, Appointment
+    notificationItemActions: handleNotificationItemActions, // Add actions for approval notifications
     ...otherProps
   };
 
@@ -307,7 +342,9 @@ const NovuInbox = ({
   // Render Inbox (component already checks mounted state above)
   return (
     <div className={className} style={style}>
-      <Inbox {...inboxProps} />
+      <Inbox {...inboxProps} 
+      appearance={appearance}
+      />
     </div>
   );
 };
