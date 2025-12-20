@@ -64,25 +64,19 @@ const NovuInbox = ({
     {
       label: 'Approval',
       filter: {
-        // Filter by payload data structure (filters.tag)
-        // This ensures notifications only appear in Approval tab when payload.filters.tag === 'approval'
-        data: {
-          filters: {
-            tag: 'approval'
-          }
-        }
+        // Filter by workflow tags (set in Novu Dashboard workflow settings)
+        // IMPORTANT: Make sure your "default" workflow has "approval" tag in Novu Dashboard
+        // Go to: Workflows → default → Settings → Tags → Add "approval"
+        tags: ['approval'],
       },
     },
     {
       label: 'Announcement',
       filter: {
-        // Filter by payload data structure (filters.tag)
-        // This ensures notifications only appear in Announcement tab when payload.filters.tag === 'announcement'
-        data: {
-          filters: {
-            tag: 'announcement'
-          }
-        }
+        // Filter by workflow tags (set in Novu Dashboard workflow settings)
+        // IMPORTANT: Make sure your announcement workflow has "announcement" tag in Novu Dashboard
+        // Go to: Workflows → Your Announcement Workflow → Settings → Tags → Add "announcement"
+        tags: ['announcement'],
       },
     },
   ], []); // Empty dependency array - tabs don't change
