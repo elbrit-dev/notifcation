@@ -195,6 +195,181 @@ const NovuInbox = ({
   const finalSocketUrl = socketUrl || 
     (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_SOCKET_URL : null);
 
+  // Helper function to check if notification has "approval" tag
+  const hasApprovalTag = (notification) => {
+    return notification?.tags?.includes('approval') || 
+           notification?.workflow?.tags?.includes('approval') ||
+           notification?.payload?.tags?.includes('approval') ||
+           notification?.workflow?.identifier?.includes('approval');
+  };
+
+  // Notification handler to add actions for approval-tagged notifications
+  const handleNotificationItemActions = (notification) => {
+    if (hasApprovalTag(notification)) {
+      return {
+        primaryAction: {
+          label: 'Approve',
+          redirect: {
+            url: notification?.payload?.primaryActionUrl || '#',
+            target: '_self',
+          },
+        },
+        secondaryAction: {
+          label: 'Appointment',
+          redirect: {
+            url: notification?.payload?.secondaryActionUrl || '#',
+            target: '_self',
+          },
+        },
+      };
+    }
+    
+    return null;
+  };
+
+  // Custom notification renderer for approval-tagged notifications
+  // This displays custom subject, body, and image for approval notifications
+  const renderNotificationItem = (notification) => {
+    if (!hasApprovalTag(notification)) {
+      return null; // Use default rendering for non-approval notifications
+    }
+
+    // Extract custom notification data for approval notifications
+    const notificationSubject = notification?.payload?.notificationSubject || 
+                                 notification?.subject || 
+                                 notification?.title || 
+                                 'Approval Required';
+    
+    const notificationBody = notification?.payload?.notificationBody || 
+                            notification?.body || 
+                            notification?.content || 
+                            'Please review and approve this request.';
+    
+    const notificationImage = notification?.payload?.notificationImage || 
+                              notification?.payload?.image || 
+                              notification?.avatar || 
+                              null;
+
+    return (
+      <div style={{
+        display: 'flex',
+        padding: '16px',
+        borderRadius: '8px',
+        backgroundColor: '#ffffff',
+        border: '1px solid #e5e7eb',
+        marginBottom: '12px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+      }}>
+        {/* Notification Image */}
+        {notificationImage && (
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '8px',
+            marginRight: '12px',
+            flexShrink: 0,
+            overflow: 'hidden',
+          }}>
+            <img 
+              src={notificationImage} 
+              alt="Notification" 
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+        
+        {/* Notification Content */}
+        <div style={{ flex: 1 }}>
+          {/* Notification Subject */}
+          <div style={{
+            fontSize: '16px',
+            fontWeight: 600,
+            color: '#111827',
+            marginBottom: '4px',
+          }}>
+            {notificationSubject}
+          </div>
+          
+          {/* Notification Body */}
+          <div style={{
+            fontSize: '14px',
+            color: '#6b7280',
+            marginBottom: '12px',
+            lineHeight: '1.5',
+          }}>
+            {notificationBody}
+          </div>
+          
+          {/* Action Buttons */}
+          {(() => {
+            const actions = handleNotificationItemActions(notification);
+            if (!actions) return null;
+            
+            return (
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                marginTop: '12px',
+              }}>
+                {actions.primaryAction && (
+                  <button
+                    onClick={() => {
+                      const url = actions.primaryAction.redirect.url;
+                      if (url && url !== '#') {
+                        window.open(url, actions.primaryAction.redirect.target || '_self');
+                      }
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#8b5cf6',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {actions.primaryAction.label}
+                  </button>
+                )}
+                {actions.secondaryAction && (
+                  <button
+                    onClick={() => {
+                      const url = actions.secondaryAction.redirect.url;
+                      if (url && url !== '#') {
+                        window.open(url, actions.secondaryAction.redirect.target || '_self');
+                      }
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: 'transparent',
+                      color: '#6b7280',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {actions.secondaryAction.label}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+    );
+  };
+
   // Keyless mode for testing (shows demo notifications, not real ones)
   // In keyless mode, we don't require authentication or subscriber
   if (keyless) {
@@ -222,6 +397,10 @@ const NovuInbox = ({
     // Keyless mode: No subscriber required, shows demo notifications
     // Add tabs even in keyless mode
     keylessProps.tabs = tabs;
+    // Add actions handler for approval notifications
+    keylessProps.actions = handleNotificationItemActions;
+    // Add custom notification renderer for approval notifications
+    keylessProps.notificationItem = renderNotificationItem;
     
     return (
       <div className={className} style={style}>
@@ -274,43 +453,14 @@ const NovuInbox = ({
     );
   }
 
-
-  // Notification handler to add actions for approval-tagged notifications
-  const handleNotificationItemActions = (notification) => {
-    // Check if notification has "approval" tag
-    const hasApprovalTag = notification?.tags?.includes('approval') || 
-                          notification?.workflow?.tags?.includes('approval') ||
-                          notification?.payload?.tags?.includes('approval');
-    
-    if (hasApprovalTag) {
-      return {
-        primaryAction: {
-          label: 'Approve',
-          redirect: {
-           
-            target: '_self',
-          },
-        },
-        secondaryAction: {
-          label: 'Appointment',
-          redirect: {
-           
-            target: '_self',
-          },
-        },
-      };
-    }
-    
-    return null;
-  };
-
   // Render Inbox with subscriber object for REAL-TIME NOTIFICATIONS
   // This passes the actual subscriber data to Novu for live notifications
   const inboxProps = {
     applicationIdentifier: appIdentifier,
     subscriber: finalSubscriberObject, // Subscriber with ID (from auth or static prop)
     tabs: tabs, // Add tabs: All, Approval, Appointment
-    notificationItemActions: handleNotificationItemActions, // Add actions for approval notifications
+    actions: handleNotificationItemActions, // Add actions for approval notifications
+    notificationItem: renderNotificationItem, // Custom renderer for approval notifications (subject, body, image)
     ...otherProps
   };
 
