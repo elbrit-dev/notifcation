@@ -234,16 +234,25 @@ const NovuInbox = ({
       return null; // Use default rendering for non-approval notifications
     }
 
+    // Static default values for approval notifications
+    const staticApprovalData = {
+      body: 'This is a test notification!',
+      title: 'Test Notification',
+      filters: {
+        tag: 'approval',
+      },
+    };
+
     // Extract custom notification data for approval notifications
     const notificationSubject = notification?.payload?.notificationSubject || 
                                  notification?.subject || 
                                  notification?.title || 
-                                 'Approval Required';
+                                 staticApprovalData.title;
     
     const notificationBody = notification?.payload?.notificationBody || 
                             notification?.body || 
                             notification?.content || 
-                            'Please review and approve this request.';
+                            staticApprovalData.body;
     
     const notificationImage = notification?.payload?.notificationImage || 
                               notification?.payload?.image || 
