@@ -197,10 +197,28 @@ const NovuInbox = ({
 
   // Helper function to check if notification has "approval" tag
   const hasApprovalTag = (notification) => {
-    return notification?.tags?.includes('approval') || 
-           notification?.workflow?.tags?.includes('approval') ||
-           notification?.payload?.tags?.includes('approval') ||
-           notification?.workflow?.identifier?.includes('approval');
+    // Check multiple possible locations for the approval tag
+    // Priority: payload.filters.tag > payload.tags > workflow.tags > tags
+    if (notification?.payload?.filters?.tag === 'approval') {
+      return true;
+    }
+    if (notification?.payload?.tags?.includes('approval')) {
+      return true;
+    }
+    if (notification?.workflow?.tags?.includes('approval')) {
+      return true;
+    }
+    if (notification?.tags?.includes('approval')) {
+      return true;
+    }
+    if (notification?.workflow?.identifier?.includes('approval')) {
+      return true;
+    }
+    if (notification?.template?.tags?.includes('approval')) {
+      return true;
+    }
+    
+    return false;
   };
 
   // Notification handler to add actions for approval-tagged notifications only
@@ -406,10 +424,8 @@ const NovuInbox = ({
     // Keyless mode: No subscriber required, shows demo notifications
     // Add tabs even in keyless mode
     keylessProps.tabs = tabs;
-    // Add actions handler for approval notifications
+    // Add actions handler for approval notifications only
     keylessProps.actions = handleNotificationItemActions;
-    // Add custom notification renderer for approval notifications
-    keylessProps.notificationItem = renderNotificationItem;
     
     return (
       <div className={className} style={style}>
@@ -468,8 +484,9 @@ const NovuInbox = ({
     applicationIdentifier: appIdentifier,
     subscriber: finalSubscriberObject, // Subscriber with ID (from auth or static prop)
     tabs: tabs, // Add tabs: All, Approval, Appointment
-    actions: handleNotificationItemActions, // Add actions for approval notifications
-    notificationItem: renderNotificationItem, // Custom renderer for approval notifications (subject, body, image)
+    actions: handleNotificationItemActions, // Add actions for approval notifications only
+    // Note: notificationItem prop may not be supported by Novu Inbox
+    // Custom rendering is handled via actions prop and workflow configuration
     ...otherProps
   };
 
