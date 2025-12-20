@@ -65,8 +65,9 @@ const NovuInbox = ({
       label: 'Approval',
       filter: {
         // Filter by workflow tags (set in Novu Dashboard workflow settings)
+        // IMPORTANT: Make sure your workflow has "approval" tag in Novu Dashboard
+        // Go to: Workflows → Your Workflow → Settings → Tags → Add "approval"
         tags: ['approval'],
-        // Alternative: data: { type: 'approval' } (if using payload data instead)
       },
     },
     {
