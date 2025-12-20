@@ -59,19 +59,17 @@ const NovuInbox = ({
     {
       label: 'Approval',
       filter: {
-        // Filter by data attributes in payload (recommended)
-        // Include type: 'approval' or category: 'approval' in notification payload
-        data: { type: 'approval' },
-        // Alternative: tags: ['approval'] (requires workflow tag in Novu dashboard)
+        // Filter by workflow tags (set in Novu Dashboard workflow settings)
+        tags: ['approval'],
+        // Alternative: data: { type: 'approval' } (if using payload data instead)
       },
     },
     {
       label: 'Appointment',
       filter: {
-        // Filter by data attributes in payload (recommended)
-        // Include type: 'appointment' or category: 'appointment' in notification payload
-        data: { type: 'appointment' },
-        // Alternative: tags: ['appointment'] (requires workflow tag in Novu dashboard)
+        // Filter by workflow tags (set in Novu Dashboard workflow settings)
+        tags: ['appointment'],
+        // Alternative: data: { type: 'appointment' } (if using payload data instead)
       },
     },
   ], []); // Empty dependency array - tabs don't change
