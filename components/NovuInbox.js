@@ -55,7 +55,7 @@ const NovuInbox = ({
     },
   };
   // Define tabs with filters - use useMemo at top level (before early returns)
-  // Tabs: All, Approval, Appointment
+  // Tabs: All, Approval, Announcement
   const tabs = useMemo(() => [
     {
       label: 'All',
@@ -74,13 +74,13 @@ const NovuInbox = ({
       },
     },
     {
-      label: 'Appointment',
+      label: 'Announcement',
       filter: {
         // Filter by payload data structure (filters.tag)
-        // This ensures notifications only appear in Appointment tab when payload.filters.tag === 'appointment'
+        // This ensures notifications only appear in Announcement tab when payload.filters.tag === 'announcement'
         data: {
           filters: {
-            tag: 'appointment'
+            tag: 'announcement'
           }
         }
       },
@@ -229,33 +229,33 @@ const NovuInbox = ({
     return false;
   };
 
-  // Helper function to check if notification has "appointment" tag
-  const hasAppointmentTag = (notification) => {
-    // Check multiple possible locations for the appointment tag
+  // Helper function to check if notification has "announcement" tag
+  const hasAnnouncementTag = (notification) => {
+    // Check multiple possible locations for the announcement tag
     // Priority: payload.filters.tag > payload.tags > workflow.tags > tags
-    if (notification?.payload?.filters?.tag === 'appointment') {
+    if (notification?.payload?.filters?.tag === 'announcement') {
       return true;
     }
-    if (notification?.payload?.tags?.includes('appointment')) {
+    if (notification?.payload?.tags?.includes('announcement')) {
       return true;
     }
-    if (notification?.workflow?.tags?.includes('appointment')) {
+    if (notification?.workflow?.tags?.includes('announcement')) {
       return true;
     }
-    if (notification?.tags?.includes('appointment')) {
+    if (notification?.tags?.includes('announcement')) {
       return true;
     }
-    if (notification?.workflow?.identifier?.includes('appointment')) {
+    if (notification?.workflow?.identifier?.includes('announcement')) {
       return true;
     }
-    if (notification?.template?.tags?.includes('appointment')) {
+    if (notification?.template?.tags?.includes('announcement')) {
       return true;
     }
     
     return false;
   };
 
-  // Notification handler to add actions for approval and appointment notifications
+  // Notification handler to add actions for approval and announcement notifications
   const handleNotificationItemActions = (notification) => {
     // Handle approval notifications
     if (hasApprovalTag(notification)) {
@@ -277,8 +277,8 @@ const NovuInbox = ({
       };
     }
     
-    // Handle appointment notifications
-    if (hasAppointmentTag(notification)) {
+    // Handle announcement notifications
+    if (hasAnnouncementTag(notification)) {
       return {
         primaryAction: {
           label: 'Accept',
@@ -300,13 +300,13 @@ const NovuInbox = ({
     return null;
   };
 
-  // Custom notification renderer for approval and appointment-tagged notifications
+  // Custom notification renderer for approval and announcement-tagged notifications
   // This displays custom subject, body, and image for these notifications
   const renderNotificationItem = (notification) => {
     const isApproval = hasApprovalTag(notification);
-    const isAppointment = hasAppointmentTag(notification);
+    const isAnnouncement = hasAnnouncementTag(notification);
     
-    if (!isApproval && !isAppointment) {
+    if (!isApproval && !isAnnouncement) {
       return null; // Use default rendering for other notifications
     }
 
@@ -319,17 +319,17 @@ const NovuInbox = ({
       },
     };
 
-    // Static default values for appointment notifications
-    const staticAppointmentData = {
-      body: 'You have a new appointment scheduled!',
-      title: 'Appointment Notification',
+    // Static default values for announcement notifications
+    const staticAnnouncementData = {
+      body: 'You have a new announcement!',
+      title: 'Announcement Notification',
       filters: {
-        tag: 'appointment',
+        tag: 'announcement',
       },
     };
 
-    // Extract custom notification data for approval/appointment notifications
-    const staticData = isApproval ? staticApprovalData : staticAppointmentData;
+    // Extract custom notification data for approval/announcement notifications
+    const staticData = isApproval ? staticApprovalData : staticAnnouncementData;
     
     const notificationSubject = notification?.payload?.notificationSubject || 
                                  notification?.subject || 
@@ -552,7 +552,7 @@ const NovuInbox = ({
   const inboxProps = {
     applicationIdentifier: appIdentifier,
     subscriber: finalSubscriberObject, // Subscriber with ID (from auth or static prop)
-    tabs: tabs, // Add tabs: All, Approval, Appointment
+    tabs: tabs, // Add tabs: All, Approval, Announcement
     actions: handleNotificationItemActions, // Add actions for approval notifications only
     // Note: notificationItem prop may not be supported by Novu Inbox
     // Custom rendering is handled via actions prop and workflow configuration
