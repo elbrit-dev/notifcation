@@ -195,40 +195,6 @@ const NovuInbox = ({
   const finalSocketUrl = socketUrl || 
     (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_NOVU_SOCKET_URL : null);
 
-  // Static default values for approval notifications (for demo display)
-  const staticApprovalData = {
-    body: 'This is a test notification!',
-    title: 'Test Notification',
-    filters: {
-      tag: 'approval',
-    },
-  };
-
-  // Create demo notification object for static display (without triggering workflow)
-  // This will be rendered using the custom renderer to show in tabs
-  const demoNotification = useMemo(() => ({
-    id: 'demo-approval-static',
-    createdAt: new Date().toISOString(),
-    read: false,
-    tags: ['approval'],
-    workflow: {
-      tags: ['approval'],
-      identifier: 'approval-workflow'
-    },
-    payload: {
-      tags: ['approval'],
-      notificationSubject: staticApprovalData.title,
-      notificationBody: staticApprovalData.body,
-      notificationImage: null,
-      primaryActionUrl: 'https://acme.com/get-started',
-      secondaryActionUrl: 'https://acme.com/learn-more',
-    },
-    subject: staticApprovalData.title,
-    title: staticApprovalData.title,
-    body: staticApprovalData.body,
-    content: staticApprovalData.body,
-  }), []);
-
   // Helper function to check if notification has "approval" tag
   const hasApprovalTag = (notification) => {
     return notification?.tags?.includes('approval') || 
@@ -532,47 +498,12 @@ const NovuInbox = ({
     }
   }
 
-  // Render demo notification using static data (for display without triggering workflow)
-  // This shows the static approval notification in the tabs
-  const renderDemoNotification = () => {
-    const demo = renderNotificationItem(demoNotification);
-    if (!demo) return null;
-    
-    return (
-      <div style={{
-        padding: '0 16px',
-        marginBottom: '12px',
-      }}>
-        {demo}
-      </div>
-    );
-  };
-
   // Render Inbox (component already checks mounted state above)
   return (
     <div className={className} style={style}>
       <Inbox {...inboxProps} 
       appearance={appearance}
       />
-      {/* Demo notification display - shows static approval notification using static data */}
-      {/* This appears below the inbox to show the static notification format */}
-      <div style={{
-        marginTop: '16px',
-        padding: '16px',
-        backgroundColor: '#f9fafb',
-        borderRadius: '8px',
-        border: '1px dashed #d1d5db',
-      }}>
-        <div style={{
-          fontSize: '12px',
-          color: '#6b7280',
-          marginBottom: '12px',
-          fontWeight: 500,
-        }}>
-          📋 Static Demo Notification (Shows in All & Approval tabs):
-        </div>
-        {renderDemoNotification()}
-      </div>
     </div>
   );
 };
