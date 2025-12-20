@@ -203,19 +203,19 @@ const NovuInbox = ({
            notification?.workflow?.identifier?.includes('approval');
   };
 
-  // Notification handler to add actions for approval-tagged notifications
+  // Notification handler to add actions for approval-tagged notifications only
   const handleNotificationItemActions = (notification) => {
     if (hasApprovalTag(notification)) {
       return {
         primaryAction: {
-          label: 'Approve',
+          label: 'Approval',
           redirect: {
             url: notification?.payload?.primaryActionUrl || '#',
             target: '_self',
           },
         },
         secondaryAction: {
-          label: 'Appointment',
+          label: 'Deny',
           redirect: {
             url: notification?.payload?.secondaryActionUrl || '#',
             target: '_self',
@@ -236,8 +236,8 @@ const NovuInbox = ({
 
     // Static default values for approval notifications
     const staticApprovalData = {
-      body: 'This is a test notification we are testing the approval workflow!',
-      title: 'Test Notification for Approval Workflow',
+      body: 'This is a test notification!',
+      title: 'Test Notification',
       filters: {
         tag: 'approval',
       },
