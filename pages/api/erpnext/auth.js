@@ -390,15 +390,28 @@ export default async function handler(req, res) {
           // Use employeeId as subscriber ID
           const subscriberId = employeeId;
           
+          // TEST VALUES - Using sample data for testing
+          const testFirstName = "Mounika";
+          const testLastName = "M";
+          const testEmail = "mounika@elbrit.org";
+          const testPhone = "+919345405242";
+          
+          console.log('🧪 Using TEST VALUES for Novu subscriber:', {
+            subscriberId,
+            firstName: testFirstName,
+            lastName: testLastName,
+            email: testEmail,
+            phone: testPhone
+          });
+          
           // First, create/update subscriber profile in Novu with contact info
           await createOrUpdateNovuSubscriber({
-            subscriberId,
-            firstName: userData.displayName?.split(' ')[0] || userData.firstName || null,
-            lastName: userData.displayName?.split(' ').slice(1).join(' ') || userData.lastName || null,
-            email: userData.email || null,
-            phone: userData.phoneNumber || null,
+            subscriberId: subscriberId || "IN003",  // e.g., "IN003"
+            firstName: testFirstName,      // e.g., "Mounika"
+            lastName: testLastName,        // e.g., "M"
+            email: testEmail,              // e.g., "mounika@elbrit.org"
+            phone: testPhone,              // e.g., "+919345405242"
             novuSecretKey
-
           });
 
           // Then update credentials with OneSignal device tokens if subscription ID/token is available
