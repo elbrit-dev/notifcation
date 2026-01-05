@@ -433,7 +433,9 @@ export default async function handler(req, res) {
             oneSignalPlayerId: oneSignalPlayerId || 'NOT RECEIVED',
             oneSignalSubscriptionId: oneSignalSubscriptionId || 'NOT RECEIVED',
             playerIdType: typeof oneSignalPlayerId,
-            subscriptionIdType: typeof oneSignalSubscriptionId
+            subscriptionIdType: typeof oneSignalSubscriptionId,
+            playerIdValue: oneSignalPlayerId,
+            subscriptionIdValue: oneSignalSubscriptionId
           });
           
           // Validate and clean device token
@@ -480,10 +482,14 @@ export default async function handler(req, res) {
               deviceToken: validPlayerId,
               tokenType: 'onesignalId (Player ID)',
               integrationIdentifier: integrationIdentifier || 'NOT SET',
-              endpoint: `PUT /v2/subscribers/${subscriberId}/credentials`
+              endpoint: `PUT /v2/subscribers/${subscriberId}/credentials`,
+              fullParams: updateParams
             });
 
             try {
+              // Wait a bit to ensure subscriber is fully created
+              await new Promise((resolve) => setTimeout(resolve, 500));
+              
               const credResult = await novu.subscribers.credentials.update(updateParams, subscriberId);
 
               console.log('✅ Novu Dashboard - Device Credentials Updated Successfully:', {
@@ -496,20 +502,52 @@ export default async function handler(req, res) {
                 dashboardUrl: `https://web.novu.co/subscribers/${subscriberId}`,
                 pushChannelStatus: '✅ Active - Ready for push notifications'
               });
+
+              // Verify the update by checking subscriber
+              try {
+                const verifySubscriber = await novu.subscribers.get(subscriberId);
+                const hasPushChannel = verifySubscriber?.channels?.some(
+                  channel => channel.providerId === 'onesignal' || channel.providerId === 'OneSignal'
+                );
+                console.log('🔍 Verification - Push Channel Status:', {
+                  subscriberId,
+                  hasPushChannel: hasPushChannel ? '✅ YES' : '❌ NO',
+                  channels: verifySubscriber?.channels || 'No channels found'
+                });
+              } catch (verifyErr) {
+                console.warn('⚠️ Could not verify push channel:', verifyErr.message);
+              }
             } catch (credError) {
               console.error('❌ Novu Dashboard - Device Credentials Update Failed:', {
                 subscriberId,
                 error: credError.message || credError,
+                errorStack: credError.stack,
                 response: credError.response?.data || 'No response data',
+                responseStatus: credError.response?.status,
                 deviceToken: validPlayerId,
                 integrationIdentifier,
-                dashboardUrl: `https://web.novu.co/subscribers/${subscriberId}`
+                dashboardUrl: `https://web.novu.co/subscribers/${subscriberId}`,
+                troubleshooting: [
+                  '1. Check if subscriber exists in Novu Dashboard',
+                  '2. Verify NOVU_SECRET_KEY is correct',
+                  '3. Check if OneSignal integration is configured in Novu',
+                  '4. Verify device token format is correct'
+                ]
               });
             }
           } else {
-            console.warn('⚠️ OneSignal Player ID (onesignalId) not available - subscriber created but credentials not updated');
-            console.warn('   Push notifications will not work until onesignalId is available');
-            console.warn('   Check browser console for OneSignal ID retrieval logs');
+            console.error('❌ OneSignal Player ID (onesignalId) not available:', {
+              subscriberId,
+              oneSignalPlayerId: oneSignalPlayerId || 'NULL',
+              oneSignalSubscriptionId: oneSignalSubscriptionId || 'NULL',
+              issue: 'Device token cannot be set - push notifications will fail',
+              troubleshooting: [
+                '1. Check browser console for OneSignal initialization',
+                '2. Verify push notification permission is granted',
+                '3. Check if OneSignal SDK is loaded correctly',
+                '4. Look for OneSignal ID retrieval errors in browser console'
+              ]
+            });
           }
 
           console.log('✅ Novu subscriber created/updated:', {
