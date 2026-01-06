@@ -606,44 +606,34 @@ export default async function handler(req, res) {
 
           // Use employeeId as subscriber ID (can be updated with OneSignal externalId)
           let subscriberId = employeeId;
-          let FirstName = userData.firstName || "Mounika";
-          let LastName = userData.lastName || "M";
-          let email = userData.email || "mounika@elbrit.org";
-          let phone = userData.phoneNumber || "+919345405242";
+          let subscriberFirstName = userData.firstName || "Mounika";
+          let subscriberLastName = userData.lastName || "M";
+          let subscriberEmail = userData.email || "mounika@elbrit.org";
+          let subscriberPhone = userData.phoneNumber || "+919345405242";
           
           // Log raw userData for debugging
           console.log('🔍 Raw userData from ERPNext:', {
-            firstName: FirstName,
-            lastName: LastName,
-            email: email,
-            phone: phone,
+            firstName: subscriberFirstName,
+            lastName: subscriberLastName,
+            email: subscriberEmail,
+            phone: subscriberPhone,
           });
-          
-          // Extract user data from ERPNext for subscriber
-          // Use actual user data, with fallback to test values if not available
-          
           
           console.log('📝 Extracted subscriber data for Novu:', {
             subscriberId,
             firstName: subscriberFirstName,
             lastName: subscriberLastName,
             email: subscriberEmail,
-            phone: subscriberPhone,
-            source: {
-              firstName: userData.displayName ? 'displayName' : userData.firstName ? 'firstName' : userData.employeeData?.first_name ? 'employeeData.first_name' : 'FALLBACK',
-              lastName: userData.displayName ? 'displayName' : userData.lastName ? 'lastName' : userData.employeeData?.last_name ? 'employeeData.last_name' : 'FALLBACK',
-              email: userData.email ? 'email' : userData.employeeData?.company_email ? 'employeeData.company_email' : 'FALLBACK',
-              phone: userData.phoneNumber ? 'phoneNumber' : userData.employeeData?.cell_number ? 'cell_number' : userData.employeeData?.fsl_whatsapp_number ? 'fsl_whatsapp_number' : 'FALLBACK'
-            }
+            phone: subscriberPhone
           });
           
           // First, create/update subscriber profile in Novu with contact info
           await createOrUpdateNovuSubscriber({
             subscriberId: subscriberId || "IN003",
-            firstName: subscriberFirstName||"Mounika",
-            lastName: subscriberLastName||"M",
-            email: subscriberEmail||"mounika@elbrit.org",
-            phone: subscriberPhone||"+919345405242",
+            firstName: subscriberFirstName,
+            lastName: subscriberLastName,
+            email: subscriberEmail,
+            phone: subscriberPhone,
             novuSecretKey
           });
 
@@ -683,13 +673,13 @@ export default async function handler(req, res) {
                   onesignalId: onesignalUserData.onesignalId
                 });
                 
-                // Create/update subscriber using OneSignal data
+                // Create/update subscriber using OneSignal data (this will override the previous subscriber)
                 await createOrUpdateNovuSubscriber({
                   subscriberId: onesignalUserData.externalId,
-                  firstName: onesignalUserData.firstName || "Mounika",
-                  lastName: onesignalUserData.lastName || "M",
-                  email: onesignalUserData.email || "mounika@elbrit.org",
-                  phone: onesignalUserData.phone || "+919345405242",
+                  firstName: onesignalUserData.firstName || subscriberFirstName,
+                  lastName: onesignalUserData.lastName || subscriberLastName,
+                  email: onesignalUserData.email || subscriberEmail,
+                  phone: onesignalUserData.phone || subscriberPhone,
                   novuSecretKey,
                   customData: {
                     onesignalId: onesignalUserData.onesignalId
@@ -698,6 +688,20 @@ export default async function handler(req, res) {
                 
                 // Update subscriberId to use OneSignal externalId for credentials update
                 subscriberId = onesignalUserData.externalId;
+              } else {
+                // If OneSignal data exists but no externalId, still add OneSignal ID to custom data
+                console.log('🔄 Adding OneSignal ID to existing subscriber custom data');
+                await createOrUpdateNovuSubscriber({
+                  subscriberId: subscriberId || "IN003",
+                  firstName: subscriberFirstName,
+                  lastName: subscriberLastName,
+                  email: subscriberEmail,
+                  phone: subscriberPhone,
+                  novuSecretKey,
+                  customData: {
+                    onesignalId: onesignalUserData.onesignalId
+                  }
+                });
               }
             } else {
               console.error('❌ OneSignal user data not available from OneSignal API:', {
