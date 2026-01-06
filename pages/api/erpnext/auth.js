@@ -1,151 +1,7 @@
 import { Novu } from '@novu/api';
 import { ChatOrPushProviderEnum } from "@novu/api/models/components";
 
-/**
- * Fetch full OneSignal user data from OneSignal API using Player ID or Subscription ID
- * @param {string} deviceToken - OneSignal Player ID or Subscription ID
- * @returns {Promise<{onesignalId: string, externalId: string, firstName: string, lastName: string, phone: string, email: string} | null>} - Returns full user data or null
- */
-async function fetchOneSignalUserData(deviceToken) {
-  if (!deviceToken) {
-    return null;
-  }
-
-  const oneSignalAppId = process.env.ONESIGNAL_APP_ID || process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || 'ae84e191-00f5-445c-8e43-173709b8a553';
-  const oneSignalApiKey = process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY;
-
-  if (!oneSignalApiKey) {
-    console.warn('⚠️ OneSignal REST API key not configured. Cannot fetch OneSignal user data.');
-    return null;
-  }
-
-  try {
-    console.log('🔍 Fetching OneSignal user data from OneSignal API for deviceToken:', deviceToken);
-
-    // Try multiple approaches to get user data
-    let userResponse = null;
-
-    // Approach 1: Try by player_id (subscription ID)
-    const playerUrl = `https://api.onesignal.com/apps/${oneSignalAppId}/users/by/player_id/${deviceToken}`;
-    userResponse = await fetch(playerUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${oneSignalApiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    // Approach 2: If player_id fails, try by onesignal_id (in case deviceToken is already a OneSignal ID)
-    if (!userResponse.ok || userResponse.status === 404) {
-      console.log('ℹ️ Player ID not found, trying as OneSignal ID...');
-      const onesignalIdUrl = `https://api.onesignal.com/apps/${oneSignalAppId}/users/by/onesignal_id/${deviceToken}`;
-      userResponse = await fetch(onesignalIdUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${oneSignalApiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-
-    if (!userResponse.ok) {
-      const errorText = await userResponse.text();
-      console.warn('⚠️ OneSignal user fetch failed:', userResponse.status, errorText);
-      return null;
-    }
-
-    const userData = await userResponse.json();
-    console.log('📊 OneSignal user data retrieved:', JSON.stringify(userData, null, 2));
-
-    // Extract data from OneSignal response
-    const onesignalId = userData.identity?.onesignal_id || null;
-    const externalId = userData.identity?.external_id || null;
-    
-    // Extract name from tags or properties
-    const tags = userData.properties?.tags || {};
-    const name = tags.name || tags.Name || tags.full_name || tags.fullName || null;
-    
-    // Parse name into firstName and lastName
-    let firstName = tags.first_name || tags.firstName || tags.FirstName || null;
-    let lastName = tags.last_name || tags.lastName || tags.LastName || null;
-    
-    if (name && !firstName) {
-      const nameParts = name.trim().split(' ');
-      firstName = nameParts[0] || null;
-      lastName = nameParts.slice(1).join(' ') || null;
-    }
-    
-    // Extract phone from subscriptions or tags
-    let phone = null;
-    const subscriptions = userData.subscriptions || [];
-    const smsSubscription = subscriptions.find(sub => sub.type === 'SMS' && sub.enabled && sub.token);
-    if (smsSubscription) {
-      phone = smsSubscription.token;
-    } else if (tags.phone || tags.phoneNumber || tags.Phone) {
-      phone = tags.phone || tags.phoneNumber || tags.Phone;
-    }
-    
-    // Extract email from subscriptions or tags
-    let email = null;
-    const emailSubscription = subscriptions.find(sub => sub.type === 'Email' && sub.enabled && sub.token);
-    if (emailSubscription) {
-      email = emailSubscription.token;
-    } else if (tags.email || tags.Email) {
-      email = tags.email || tags.Email;
-    }
-
-    if (!onesignalId) {
-      console.warn('⚠️ OneSignal ID not found in response');
-      return null;
-    }
-
-    // Extract all tags and properties for otherProps
-    const allTags = userData.properties?.tags || {};
-    const allProperties = userData.properties || {};
-    
-    const result = {
-      onesignalId,
-      externalId,
-      firstName,
-      lastName,
-      phone,
-      email,
-      // Include all OneSignal tags and properties as otherProps
-      tags: allTags,
-      properties: allProperties,
-      subscriptions: userData.subscriptions || []
-    };
-
-    console.log('✅ OneSignal user data extracted:', {
-      onesignalId: result.onesignalId,
-      externalId: result.externalId,
-      firstName: result.firstName,
-      lastName: result.lastName,
-      phone: result.phone,
-      email: result.email,
-      tagsCount: Object.keys(result.tags).length,
-      propertiesCount: Object.keys(result.properties).length,
-      subscriptionsCount: result.subscriptions.length
-    });
-    return result;
-
-  } catch (error) {
-    console.error('❌ Error fetching OneSignal user data:', error);
-    return null;
-  }
-}
-
-/**
- * Fetch OneSignal ID (onesignal_id) from OneSignal API using Player ID or Subscription ID
- * @param {string} deviceToken - OneSignal Player ID or Subscription ID
- * @returns {Promise<string | null>} - Returns OneSignal ID (onesignal_id) or null
- */
-async function fetchOneSignalIdFromOneSignal(deviceToken) {
-  const userData = await fetchOneSignalUserData(deviceToken);
-  return userData?.onesignalId || null;
-}
-
-async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName, email, phone, novuSecretKey, customData }) {
+async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName, email, phone, novuSecretKey }) {
   if (!subscriberId || !novuSecretKey) {
     console.warn('⚠️ Missing subscriberId or novuSecretKey for Novu subscriber creation');
     return;
@@ -157,26 +13,15 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
     'idempotency-key': subscriberId
   };
 
-  // Build payload with actual values or fallback defaults
   const payload = {
-    subscriberId: String(subscriberId)
+    subscriberId,
+    firstName,
+    lastName,
+    email,
+    phone
   };
-  
-  // Set values - use provided values if they exist and are not empty, otherwise use defaults
-  payload.firstName = (firstName && firstName.trim()) || "Mounika";
-  payload.lastName = (lastName && lastName.trim()) || "M";
-  payload.email = (email && email.trim()) || "mounika@elbrit.org";
-  payload.phone = (phone && phone.trim()) || "+919345405242";
-  
-  // Add custom data if provided
-  if (customData && typeof customData === 'object') {
-    payload.data = customData;
-  }
-
-  console.log('📤 Step 1: Creating subscriber with payload:', JSON.stringify(payload, null, 2));
 
   // Create subscriber (ignore if already exists via failIfExists flag)
-  let createSuccess = false;
   try {
     const createRes = await fetch(`https://api.novu.co/v2/subscribers?failIfExists=true`, {
       method: 'POST',
@@ -185,98 +30,33 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
     });
 
     if (createRes.ok) {
-      const createData = await createRes.json().catch(() => null);
-      console.log('✅ Step 1: Novu subscriber created successfully:', subscriberId);
-      createSuccess = true;
+      console.log('✅ Novu subscriber created successfully:', subscriberId);
     } else if (createRes.status === 409) {
-      console.log('ℹ️ Step 1: Novu subscriber already exists (status 409), proceeding to update:', subscriberId);
-      createSuccess = true; // Subscriber exists, we can update
+      console.log('ℹ️ Novu subscriber already exists, will update:', subscriberId);
     } else {
       const errText = await createRes.text();
-      console.warn('⚠️ Step 1: Novu subscriber create failed:', createRes.status, errText);
+      console.warn('⚠️ Novu subscriber create failed:', createRes.status, errText);
     }
   } catch (err) {
-    console.error('❌ Step 1: Novu subscriber create exception:', err);
+    console.warn('⚠️ Novu subscriber create exception:', err);
   }
 
-  // Wait a bit longer to ensure subscriber is fully created/ready before updating
-  console.log('⏳ Waiting 1 second before update...');
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  // Step 2: ALWAYS update to ensure latest profile data (even if create succeeded)
-  console.log('📤 Step 2: Updating Novu subscriber with latest data:', JSON.stringify(payload, null, 2));
-  
+  // Update to ensure latest profile data
   try {
     const updateRes = await fetch(`https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`, {
       method: 'PUT',
-      headers: {
-        Authorization: `ApiKey ${novuSecretKey}`,
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify(payload)
     });
 
-    const responseText = await updateRes.text();
-    let updateData = null;
-    try {
-      updateData = JSON.parse(responseText);
-    } catch (e) {
-      // Response might not be JSON
-    }
-
-    console.log('📥 Step 2: Update Response Status:', updateRes.status);
-    console.log('📥 Step 2: Update Response Text:', responseText);
-
     if (updateRes.ok) {
-      console.log('✅ Step 2: Novu subscriber UPDATED successfully:', {
-        subscriberId,
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        email: payload.email,
-        phone: payload.phone,
-        response: updateData || responseText,
-        status: updateRes.status
-      });
-      
-      // Verify the update by fetching the subscriber
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const verifyRes = await fetch(`https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`, {
-          method: 'GET',
-          headers: {
-            Authorization: `ApiKey ${novuSecretKey}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (verifyRes.ok) {
-          const verifyData = await verifyRes.json();
-          console.log('✅ Step 3: Verification - Current subscriber data:', {
-            subscriberId: verifyData.data?.subscriberId,
-            firstName: verifyData.data?.firstName,
-            lastName: verifyData.data?.lastName,
-            email: verifyData.data?.email,
-            phone: verifyData.data?.phone
-          });
-        }
-      } catch (verifyErr) {
-        console.warn('⚠️ Step 3: Could not verify subscriber update:', verifyErr.message);
-      }
+      console.log('✅ Novu subscriber updated successfully:', subscriberId);
     } else {
-      console.error('❌ Step 2: Novu subscriber update FAILED:', {
-        status: updateRes.status,
-        statusText: updateRes.statusText,
-        error: responseText,
-        payload: JSON.stringify(payload, null, 2),
-        subscriberId: subscriberId
-      });
+      const errText = await updateRes.text();
+      console.warn('⚠️ Novu subscriber update failed:', updateRes.status, errText);
     }
   } catch (err) {
-    console.error('❌ Step 2: Novu subscriber update exception:', {
-      error: err.message,
-      stack: err.stack,
-      payload: JSON.stringify(payload, null, 2)
-    });
+    console.warn('⚠️ Novu subscriber update exception:', err);
   }
 }
 
@@ -604,12 +384,8 @@ export default async function handler(req, res) {
     });
 
     // Get employeeId from ERPNext user data for subscriber ID
-    const employeeId = userData?.customProperties?.employeeId || userData?.uid || userData?.employeeData?.name || "IN003";
+    const employeeId = userData?.customProperties?.employeeId || userData?.uid || userData?.employeeData?.name || null;
     
-    const subscriberFirstName = userData.firstName || "Mounika";
-    const subscriberLastName = userData.lastName || "M";
-    const subscriberEmail = userData.email || "mounika@elbrit.org";
-    const subscriberPhone = userData.phoneNumber || "+919345405242";
     // Create/update Novu subscriber if employeeId is present
     if (employeeId) {
       try {
@@ -622,43 +398,35 @@ export default async function handler(req, res) {
             // serverURL: "https://eu.api.novu.co",
           });
 
-          // Use employeeId as subscriber ID (can be updated with OneSignal externalId)
-          let subscriberId = employeeId;
-          // Use actual user data or fallback to: Mounika M, +919345405242, mounika@elbrit.org
-          let subscriberFirstName = userData.firstName || "Mounika";
-          let subscriberLastName = userData.lastName || "M";
-          let subscriberEmail = userData.email || "mounika@elbrit.org";
-          let subscriberPhone = userData.phoneNumber || "+919345405242";
+          // Use employeeId as subscriber ID
+          const subscriberId = employeeId;
           
-          // Log raw userData for debugging
-          console.log('🔍 Raw userData from ERPNext:', {
-            firstName: subscriberFirstName,
-            lastName: subscriberLastName,
-            email: subscriberEmail,
-            phone: subscriberPhone,
-          });
+          // TEST VALUES - Using sample data for testing
+          const testFirstName = "Mounika";
+          const testLastName = "M";
+          const testEmail = "mounika@elbrit.org";
+          const testPhone = "+919345405242";
           
-          console.log('📝 Extracted subscriber data for Novu (from ERPNext):', {
+          console.log('🧪 Using TEST VALUES for Novu subscriber:', {
             subscriberId,
-            firstName: subscriberFirstName,
-            lastName: subscriberLastName,
-            email: subscriberEmail,
-            phone: subscriberPhone
+            firstName: testFirstName,
+            lastName: testLastName,
+            email: testEmail,
+            phone: testPhone
           });
           
-          // First, create/update subscriber profile in Novu with ERPNext contact info
-          // This will be updated later with OneSignal data if available
+          // First, create/update subscriber profile in Novu with contact info
           await createOrUpdateNovuSubscriber({
-            subscriberId: subscriberId || "IN003",
-            firstName: subscriberFirstName,
-            lastName: subscriberLastName,
-            email: subscriberEmail,
-            phone: subscriberPhone,
+            subscriberId: subscriberId || "IN003",  // e.g., "IN003"
+            firstName: testFirstName,      // e.g., "Mounika"
+            lastName: testLastName,        // e.g., "M"
+            email: testEmail,              // e.g., "mounika@elbrit.org"
+            phone: testPhone,              // e.g., "+919345405242"
             novuSecretKey
           });
 
           // Then update credentials with OneSignal device tokens
-          // Use ONLY OneSignal ID (onesignal_id) as device token - NO FALLBACK to subscription ID
+          // Use ONLY onesignalId (Player ID) as device token - no fallback
           
           console.log('🔍 Checking OneSignal IDs for device token:', {
             subscriberId,
@@ -667,116 +435,6 @@ export default async function handler(req, res) {
             playerIdType: typeof oneSignalPlayerId,
             subscriptionIdType: typeof oneSignalSubscriptionId
           });
-          
-          // Get deviceToken to use for fetching OneSignal user data
-          const deviceTokenToFetch = oneSignalPlayerId;
-          
-          // Fetch full OneSignal user data from OneSignal API
-          let onesignalUserData = null;
-          let onesignalId = null;
-          if (deviceTokenToFetch) {
-            console.log('📱 Fetching OneSignal user data from OneSignal API...');
-            onesignalUserData = await fetchOneSignalUserData(deviceTokenToFetch);
-            
-            if (onesignalUserData && onesignalUserData.onesignalId) {
-              console.log('✅ OneSignal user data retrieved from OneSignal API:', onesignalUserData);
-              onesignalId = onesignalUserData.onesignalId;
-              
-              // ALWAYS trigger Novu update when OneSignal data is fetched (OneSignal was updated)
-              // Sync OneSignal dashboard data to Novu including all otherProps (tags, properties, subscriptions)
-              console.log('🔄 OneSignal dashboard updated - triggering Novu subscriber update with all OneSignal data...');
-              
-              if (onesignalUserData.externalId) {
-                // OneSignal has externalId - use it as subscriberId and sync all OneSignal data to Novu
-                console.log('🔄 Syncing OneSignal dashboard data to Novu subscriber (with externalId):', {
-                  subscriberId: onesignalUserData.externalId,
-                  firstName: onesignalUserData.firstName,
-                  lastName: onesignalUserData.lastName,
-                  phone: onesignalUserData.phone,
-                  email: onesignalUserData.email,
-                  onesignalId: onesignalUserData.onesignalId,
-                  tagsCount: Object.keys(onesignalUserData.tags || {}).length,
-                  propertiesCount: Object.keys(onesignalUserData.properties || {}).length
-                });
-                
-                // Create/update subscriber using OneSignal dashboard data (includes all otherProps)
-                await createOrUpdateNovuSubscriber({
-                  subscriberId: onesignalUserData.externalId,
-                  firstName: onesignalUserData.firstName || subscriberFirstName || "Mounika",
-                  lastName: onesignalUserData.lastName || subscriberLastName || "M",
-                  email: onesignalUserData.email || subscriberEmail || "mounika@elbrit.org",
-                  phone: onesignalUserData.phone || subscriberPhone || "+919345405242",
-                  novuSecretKey,
-                  customData: {
-                    onesignalId: onesignalUserData.onesignalId,
-                    // Include all OneSignal tags as otherProps
-                    ...onesignalUserData.tags,
-                    // Include OneSignal properties
-                    onesignalProperties: onesignalUserData.properties,
-                    // Include subscriptions info
-                    onesignalSubscriptions: onesignalUserData.subscriptions
-                  }
-                });
-                
-                // Update subscriberId to use OneSignal externalId for credentials update
-                subscriberId = onesignalUserData.externalId;
-              } else {
-                // OneSignal data exists but no externalId - update Novu with OneSignal data and all otherProps
-                console.log('🔄 Syncing OneSignal dashboard data to existing Novu subscriber (no externalId):', {
-                  subscriberId: subscriberId,
-                  onesignalFirstName: onesignalUserData.firstName,
-                  onesignalLastName: onesignalUserData.lastName,
-                  onesignalEmail: onesignalUserData.email,
-                  onesignalPhone: onesignalUserData.phone,
-                  onesignalId: onesignalUserData.onesignalId,
-                  tagsCount: Object.keys(onesignalUserData.tags || {}).length,
-                  propertiesCount: Object.keys(onesignalUserData.properties || {}).length
-                });
-                
-                // Use OneSignal data if available, otherwise use ERPNext data
-                const finalFirstName = onesignalUserData.firstName || subscriberFirstName || "Mounika";
-                const finalLastName = onesignalUserData.lastName || subscriberLastName || "M";
-                const finalEmail = onesignalUserData.email || subscriberEmail || "mounika@elbrit.org";
-                const finalPhone = onesignalUserData.phone || subscriberPhone || "+919345405242";
-                
-                // Update Novu subscriber with OneSignal dashboard data (includes all otherProps)
-                await createOrUpdateNovuSubscriber({
-                  subscriberId: subscriberId || "IN003",
-                  firstName: finalFirstName,
-                  lastName: finalLastName,
-                  email: finalEmail,
-                  phone: finalPhone,
-                  novuSecretKey,
-                  customData: {
-                    onesignalId: onesignalUserData.onesignalId,
-                    // Include all OneSignal tags as otherProps
-                    ...onesignalUserData.tags,
-                    // Include OneSignal properties
-                    onesignalProperties: onesignalUserData.properties,
-                    // Include subscriptions info
-                    onesignalSubscriptions: onesignalUserData.subscriptions
-                  }
-                });
-              }
-            } else {
-              console.error('❌ OneSignal user data not available from OneSignal API:', {
-                subscriberId,
-                deviceTokenUsed: deviceTokenToFetch,
-                oneSignalPlayerId: oneSignalPlayerId || 'NULL',
-                oneSignalSubscriptionId: oneSignalSubscriptionId || 'NULL',
-                error: 'Could not fetch OneSignal user data from OneSignal API',
-                action: 'Skipping device token update - push notifications will not work'
-              });
-            }
-          } else {
-            console.error('❌ No device token provided to fetch OneSignal user data:', {
-              subscriberId,
-              oneSignalPlayerId: oneSignalPlayerId || 'NULL',
-              oneSignalSubscriptionId: oneSignalSubscriptionId || 'NULL',
-              error: 'No device token available to fetch OneSignal user data',
-              action: 'Skipping device token update - push notifications will not work'
-            });
-          }
           
           // Validate and clean device token
           const cleanToken = (token) => {
@@ -793,22 +451,22 @@ export default async function handler(req, res) {
             return cleaned;
           };
           
-          const validOneSignalId = cleanToken(onesignalId);
+          const validPlayerId = cleanToken(oneSignalPlayerId);
           
           console.log('🔍 Device Token Validation:', {
             subscriberId,
-            onesignalIdFromAPI: onesignalId || 'NULL',
-            validOneSignalId: validOneSignalId || 'INVALID',
-            deviceTokenToUse: validOneSignalId || 'NONE (OneSignal ID required - no fallback)'
+            rawPlayerId: oneSignalPlayerId || 'NULL',
+            validPlayerId: validPlayerId || 'INVALID',
+            deviceTokenToUse: validPlayerId || 'NONE (onesignalId required)'
           });
           
-          if (validOneSignalId) {
+          if (validPlayerId) {
             const integrationIdentifier = process.env.NOVU_INTEGRATION_IDENTIFIER || process.env.NEXT_PUBLIC_NOVU_INTEGRATION_IDENTIFIER || null;
 
             const updateParams = {
               providerId: ChatOrPushProviderEnum.OneSignal,
               credentials: {
-                deviceTokens: [validOneSignalId], // Using ONLY OneSignal ID (onesignal_id) as device token
+                deviceTokens: [validPlayerId], // Using ONLY onesignalId (Player ID) as device token
               },
             };
 
@@ -817,81 +475,41 @@ export default async function handler(req, res) {
               updateParams.integrationIdentifier = integrationIdentifier;
             }
 
-            console.log('📤 Updating Novu credentials with OneSignal ID as device token:', {
+            console.log('📤 Updating Novu credentials with device token:', {
               subscriberId,
-              deviceToken: validOneSignalId,
-              tokenType: 'OneSignal ID (onesignal_id) from OneSignal API',
+              deviceToken: validPlayerId,
+              tokenType: 'onesignalId (Player ID)',
               integrationIdentifier: integrationIdentifier || 'NOT SET',
-              endpoint: `PUT /v2/subscribers/${subscriberId}/credentials`,
-              fullParams: updateParams
+              endpoint: `PUT /v2/subscribers/${subscriberId}/credentials`
             });
 
             try {
-              // Wait a bit to ensure subscriber is fully created
-              await new Promise((resolve) => setTimeout(resolve, 500));
-              
               const credResult = await novu.subscribers.credentials.update(updateParams, subscriberId);
 
               console.log('✅ Novu Dashboard - Device Credentials Updated Successfully:', {
                 subscriberId,
                 status: 'Success',
-                deviceToken: validOneSignalId,
-                tokenType: 'OneSignal ID (onesignal_id) from OneSignal API',
+                deviceToken: validPlayerId,
+                tokenType: 'onesignalId (Player ID)',
                 integrationIdentifier: integrationIdentifier || 'NOT SET',
                 response: credResult || 'Success',
                 dashboardUrl: `https://web.novu.co/subscribers/${subscriberId}`,
                 pushChannelStatus: '✅ Active - Ready for push notifications'
               });
-
-              // Verify the update by checking subscriber
-              try {
-                const verifySubscriber = await novu.subscribers.get(subscriberId);
-                const hasPushChannel = verifySubscriber?.channels?.some(
-                  channel => channel.providerId === 'onesignal' || channel.providerId === 'OneSignal'
-                );
-                console.log('🔍 Verification - Push Channel Status:', {
-                  subscriberId,
-                  hasPushChannel: hasPushChannel ? '✅ YES' : '❌ NO',
-                  channels: verifySubscriber?.channels || 'No channels found'
-                });
-              } catch (verifyErr) {
-                console.warn('⚠️ Could not verify push channel:', verifyErr.message);
-              }
             } catch (credError) {
               console.error('❌ Novu Dashboard - Device Credentials Update Failed:', {
                 subscriberId,
                 error: credError.message || credError,
-                errorStack: credError.stack,
                 response: credError.response?.data || 'No response data',
-                responseStatus: credError.response?.status,
-                deviceToken: validOneSignalId,
+                deviceToken: validPlayerId,
                 integrationIdentifier,
-                dashboardUrl: `https://web.novu.co/subscribers/${subscriberId}`,
-                troubleshooting: [
-                  '1. Check if subscriber exists in Novu Dashboard',
-                  '2. Verify NOVU_SECRET_KEY is correct',
-                  '3. Check if OneSignal integration is configured in Novu',
-                  '4. Verify device token format is correct',
-                  '5. Check if OneSignal REST API key is configured'
-                ]
+                dashboardUrl: `https://web.novu.co/subscribers/${subscriberId}`
               });
             }
           } else {
-            console.error('❌ OneSignal ID (onesignal_id) not available from OneSignal API:', {
-              subscriberId,
-              oneSignalPlayerId: oneSignalPlayerId || 'NULL',
-              oneSignalSubscriptionId: oneSignalSubscriptionId || 'NULL',
-              onesignalIdFromAPI: onesignalId || 'NULL',
-              issue: 'OneSignal ID not fetched from OneSignal API - device token cannot be set',
-              action: 'Push notifications will fail - OneSignal ID is required (no fallback to subscription ID)',
-              troubleshooting: [
-                '1. Check if OneSignal REST API key is configured (ONESIGNAL_REST_API_KEY)',
-                '2. Verify the deviceToken (player ID or subscription ID) is valid',
-                '3. Check OneSignal API response for errors',
-                '4. Ensure user exists in OneSignal dashboard',
-                '5. Verify OneSignal App ID is correct'
-              ]
-            });
+            console.warn('⚠️ OneSignal Player ID (onesignalId) not available - subscriber created but credentials not updated');
+            console.warn('   Push notifications will not work until onesignalId is available');
+            console.warn('   Check browser console for OneSignal ID retrieval logs');
           }
 
           console.log('✅ Novu subscriber created/updated:', {
