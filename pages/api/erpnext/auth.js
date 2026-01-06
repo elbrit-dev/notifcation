@@ -586,7 +586,7 @@ export default async function handler(req, res) {
     });
 
     // Get employeeId from ERPNext user data for subscriber ID
-    const employeeId = userData?.customProperties?.employeeId || userData?.uid || userData?.employeeData?.name || null;
+    const employeeId = userData?.customProperties?.employeeId || userData?.uid || userData?.employeeData?.name || "IN003";
     
     // Create/update Novu subscriber if employeeId is present
     if (employeeId) {
