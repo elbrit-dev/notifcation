@@ -54,10 +54,10 @@ async function fetchOneSignalIdFromOneSignal(deviceToken) {
   }
 }
 
-async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName, email, phone, novuSecretKey }) {
+async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName, email, phone, novuSecretKey, customData }) {
   if (!subscriberId || !novuSecretKey) {
     console.warn('⚠️ Missing subscriberId or novuSecretKey for Novu subscriber creation');
-    return;
+    return { success: false, error: 'Missing required parameters' };
   }
 
   const headers = {
@@ -66,15 +66,34 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
     'idempotency-key': subscriberId
   };
 
+  // Build payload - include all fields (caller always provides fallbacks, so these should always have values)
   const payload = {
-    subscriberId,
-    firstName,
-    lastName,
-    email,
-    phone
+    subscriberId: String(subscriberId),
+    firstName: firstName || null,
+    lastName: lastName || null,
+    email: email || null,
+    phone: phone || null
   };
 
+  // Add custom data fields (chatId, externalId, oneSignalId, etc.) if provided
+  if (customData && typeof customData === 'object' && Object.keys(customData).length > 0) {
+    payload.data = customData;
+  }
+  
+  console.log('📋 Prepared subscriber payload:', {
+    subscriberId: payload.subscriberId,
+    hasFirstName: !!payload.firstName,
+    hasLastName: !!payload.lastName,
+    hasEmail: !!payload.email,
+    email: payload.email,
+    hasPhone: !!payload.phone,
+    phone: payload.phone
+  });
+
+  console.log('📤 Novu subscriber payload:', JSON.stringify(payload, null, 2));
+
   // Create subscriber (ignore if already exists via failIfExists flag)
+  let createSuccess = false;
   try {
     const createRes = await fetch(`https://api.novu.co/v2/subscribers?failIfExists=true`, {
       method: 'POST',
@@ -82,34 +101,80 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
       body: JSON.stringify(payload)
     });
 
+    const createResText = await createRes.text();
+    let createData = null;
+    try {
+      createData = JSON.parse(createResText);
+    } catch (e) {
+      // Response might not be JSON
+    }
+
     if (createRes.ok) {
       console.log('✅ Novu subscriber created successfully:', subscriberId);
+      createSuccess = true;
     } else if (createRes.status === 409) {
       console.log('ℹ️ Novu subscriber already exists, will update:', subscriberId);
+      createSuccess = true; // 409 means it exists, which is fine
     } else {
-      const errText = await createRes.text();
-      console.warn('⚠️ Novu subscriber create failed:', createRes.status, errText);
+      console.warn('⚠️ Novu subscriber create failed:', {
+        status: createRes.status,
+        statusText: createRes.statusText,
+        error: createResText,
+        payload: JSON.stringify(payload, null, 2)
+      });
     }
   } catch (err) {
-    console.warn('⚠️ Novu subscriber create exception:', err);
+    console.error('❌ Novu subscriber create exception:', err);
+    return { success: false, error: err.message };
   }
 
-  // Update to ensure latest profile data
+  // Always wait a bit before update to ensure subscriber is fully created/ready
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  // Always update to ensure latest profile data (even if subscriber already existed)
   try {
+    console.log('📤 Updating Novu subscriber with payload:', JSON.stringify(payload, null, 2));
+    console.log('📤 Update URL:', `https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`);
+    
     const updateRes = await fetch(`https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`, {
       method: 'PUT',
-      headers,
+      headers: {
+        Authorization: `ApiKey ${novuSecretKey}`,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(payload)
     });
 
+    const updateResText = await updateRes.text();
+    let updateData = null;
+    try {
+      updateData = JSON.parse(updateResText);
+    } catch (e) {
+      // Response might not be JSON
+    }
+
     if (updateRes.ok) {
-      console.log('✅ Novu subscriber updated successfully:', subscriberId);
+      console.log('✅ Novu subscriber updated successfully:', {
+        subscriberId,
+        firstName: payload.firstName || 'N/A',
+        lastName: payload.lastName || 'N/A',
+        email: payload.email || 'N/A',
+        phone: payload.phone || 'N/A',
+        response: updateData || updateResText
+      });
+      return { success: true, data: updateData };
     } else {
-      const errText = await updateRes.text();
-      console.warn('⚠️ Novu subscriber update failed:', updateRes.status, errText);
+      console.error('❌ Novu subscriber update FAILED:', {
+        status: updateRes.status,
+        statusText: updateRes.statusText,
+        error: updateResText,
+        payload: JSON.stringify(payload, null, 2)
+      });
+      return { success: false, error: updateResText, status: updateRes.status };
     }
   } catch (err) {
-    console.warn('⚠️ Novu subscriber update exception:', err);
+    console.error('❌ Novu subscriber update exception:', err);
+    return { success: false, error: err.message };
   }
 }
 
@@ -453,6 +518,15 @@ export default async function handler(req, res) {
           const userEmail = userData?.email || "mounika@elbrit.org";
           const userPhone = userData?.phoneNumber || "+919345405242";
           
+          // Extract custom data fields (chatId, externalId, etc.) from userData
+          const customData = {};
+          if (userData?.chatId) customData.chatId = userData.chatId;
+          if (userData?.customProperties?.chatId) customData.chatId = userData.customProperties.chatId;
+          if (userData?.employeeData?.chatId) customData.chatId = userData.employeeData.chatId;
+          if (userData?.externalId) customData.externalId = userData.externalId;
+          if (userData?.customProperties?.externalId) customData.externalId = userData.customProperties.externalId;
+          if (userData?.employeeData?.externalId) customData.externalId = userData.employeeData.externalId;
+          
           console.log('📝 Creating/updating Novu subscriber:', {
             subscriberId,
             firstName,
@@ -460,18 +534,24 @@ export default async function handler(req, res) {
             email: userEmail,
             phone: userPhone,
             displayName: displayName || 'N/A',
+            customData: Object.keys(customData).length > 0 ? customData : 'none',
             usingFallback: !userData?.email
           });
           
-          // First, create/update subscriber profile in Novu with contact info
-          await createOrUpdateNovuSubscriber({
+          // First, create/update subscriber profile in Novu with contact info and custom data
+          const subscriberResult = await createOrUpdateNovuSubscriber({
             subscriberId: subscriberId,
             firstName: firstName,
             lastName: lastName,
             email: userEmail,
             phone: userPhone,
-            novuSecretKey
+            novuSecretKey,
+            customData: Object.keys(customData).length > 0 ? customData : undefined
           });
+
+          if (!subscriberResult?.success) {
+            console.error('❌ Failed to create/update Novu subscriber profile:', subscriberResult?.error);
+          }
 
           // Wait a bit to ensure subscriber is fully created before updating credentials
           await new Promise((resolve) => setTimeout(resolve, 1000));
