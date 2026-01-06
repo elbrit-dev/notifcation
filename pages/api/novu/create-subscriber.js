@@ -126,8 +126,8 @@ export default async function handler(req, res) {
 
   try {
     const {
-      subscriberId: providedSubscriberId,        // Employee ID (e.g., 'IN003')
-      email: providedEmail,              // Email (e.g., 'mounika@elbrit.org')
+      subscriberId: providedSubscriberId || 'IN003',
+      email: providedEmail||'mounika@elbrit.org',
       displayName,         // Display name (e.g., 'mounika M')
       oneSignalSubscriptionId, // Subscription ID (e.g., '85eacb69-525c-41c5-8c24-1d59a64e7b90')
       externalId,         // External ID (e.g., 'mounika@elbrit.org')
