@@ -126,13 +126,17 @@ export default async function handler(req, res) {
 
   try {
     const {
-      subscriberId: providedSubscriberId || 'IN003',
-      email: providedEmail||'mounika@elbrit.org',
+      subscriberId,
+      email,
       displayName,         // Display name (e.g., 'mounika M')
       oneSignalSubscriptionId, // Subscription ID (e.g., '85eacb69-525c-41c5-8c24-1d59a64e7b90')
       externalId,         // External ID (e.g., 'mounika@elbrit.org')
       oneSignalId        // OneSignal ID (e.g., 'mounika@elbrit.org')
     } = req.body;
+
+    // Use provided values with fallbacks
+    const providedSubscriberId = subscriberId || 'IN003';
+    const providedEmail = email || 'mounika@elbrit.org';
 
     // Validate required fields
     if (!providedSubscriberId) {
