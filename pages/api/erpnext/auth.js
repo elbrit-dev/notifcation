@@ -13,13 +13,18 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
     'idempotency-key': subscriberId
   };
 
+  // Build payload - only include non-null, non-undefined values
   const payload = {
-    subscriberId,
-    firstName,
-    lastName,
-    email,
-    phone
+    subscriberId: String(subscriberId)
   };
+  
+  // Only add fields if they have actual values
+  if (firstName && firstName.trim()) payload.firstName ="Mounika";
+  if (lastName && lastName.trim()) payload.lastName ="M";
+  if (email && email.trim()) payload.email ="mounika@elbrit.org";
+  if (phone && phone.trim()) payload.phone ="+919345405242";
+
+  console.log('📤 Creating Novu subscriber with payload:', JSON.stringify(payload, null, 2));
 
   // Create subscriber (ignore if already exists via failIfExists flag)
   try {
@@ -41,22 +46,49 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
     console.warn('⚠️ Novu subscriber create exception:', err);
   }
 
+  // Wait a bit to ensure subscriber is fully created before updating
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
   // Update to ensure latest profile data
+  console.log('📤 Updating Novu subscriber with payload:', JSON.stringify(payload, null, 2));
+  
   try {
     const updateRes = await fetch(`https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`, {
       method: 'PUT',
-      headers,
+      headers: {
+        Authorization: `ApiKey ${novuSecretKey}`,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(payload)
     });
 
+    const responseText = await updateRes.text();
+    let updateData = null;
+    try {
+      updateData = JSON.parse(responseText);
+    } catch (e) {
+      // Response might not be JSON
+    }
+
     if (updateRes.ok) {
-      console.log('✅ Novu subscriber updated successfully:', subscriberId);
+      console.log('✅ Novu subscriber updated successfully:', {
+        subscriberId,
+        firstName: payload.firstName || 'NOT SET',
+        lastName: payload.lastName || 'NOT SET',
+        email: payload.email || 'NOT SET',
+        phone: payload.phone || 'NOT SET',
+        response: updateData || responseText
+      });
     } else {
-      const errText = await updateRes.text();
-      console.warn('⚠️ Novu subscriber update failed:', updateRes.status, errText);
+      console.error('❌ Novu subscriber update FAILED:', {
+        status: updateRes.status,
+        statusText: updateRes.statusText,
+        error: responseText,
+        payload: JSON.stringify(payload, null, 2)
+      });
     }
   } catch (err) {
-    console.warn('⚠️ Novu subscriber update exception:', err);
+    console.error('❌ Novu subscriber update exception:', err);
   }
 }
 
@@ -343,6 +375,20 @@ export default async function handler(req, res) {
           const subscriberLastName = userData.displayName?.split(' ').slice(1).join(' ') || userData.lastName || "M";
           const subscriberEmail = userData.email || "mounika@elbrit.org";
           const subscriberPhone = userData.phoneNumber || "+919345405242";
+          
+          console.log('📝 Subscriber data extracted from ERPNext:', {
+            subscriberId,
+            firstName: subscriberFirstName,
+            lastName: subscriberLastName,
+            email: subscriberEmail,
+            phone: subscriberPhone,
+            source: {
+              firstName: userData.displayName ? 'displayName' : userData.firstName ? 'firstName' : 'FALLBACK',
+              lastName: userData.displayName ? 'displayName' : userData.lastName ? 'lastName' : 'FALLBACK',
+              email: userData.email ? 'email' : 'FALLBACK',
+              phone: userData.phoneNumber ? 'phoneNumber' : 'FALLBACK'
+            }
+          });
           
           await createOrUpdateNovuSubscriber({
             subscriberId: subscriberId || "IN003",
