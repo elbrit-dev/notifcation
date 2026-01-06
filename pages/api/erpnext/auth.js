@@ -606,10 +606,11 @@ export default async function handler(req, res) {
 
           // Use employeeId as subscriber ID (can be updated with OneSignal externalId)
           let subscriberId = employeeId;
-          let FirstName = userData.firstName || "Mounika";
-          let LastName = userData.lastName || "M";
-          let email = userData.email || "mounika@elbrit.org";
-          let phone = userData.phoneNumber || "+919345405242";
+          // Use actual user data or fallback to: Mounika M, +919345405242, mounika@elbrit.org
+          let subscriberFirstName = userData.firstName || "Mounika";
+          let subscriberLastName = userData.lastName || "M";
+          let subscriberEmail = userData.email || "mounika@elbrit.org";
+          let subscriberPhone = userData.phoneNumber || "+919345405242";
           
           // Log raw userData for debugging
           console.log('🔍 Raw userData from ERPNext:', {
