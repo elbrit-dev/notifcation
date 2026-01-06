@@ -44,7 +44,7 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
   // Update to ensure latest profile data
   try {
     const updateRes = await fetch(`https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`, {
-      method: 'PATCH',
+      method: 'PUT',
       headers,
       body: JSON.stringify(payload)
     });
@@ -418,10 +418,10 @@ export default async function handler(req, res) {
           // First, create/update subscriber profile in Novu with contact info
           await createOrUpdateNovuSubscriber({
             subscriberId: subscriberId || "IN003",  // e.g., "IN003"
-            firstName: testFirstName || "Mounika",  // e.g., "Mounika"
-            lastName: testLastName || "M",           // e.g., "M"
-            email: testEmail || "mounika@elbrit.org", // e.g., "mounika@elbrit.org"
-            phone: testPhone || "+919345405242",     // e.g., "+919345405242"
+            firstName: testFirstName,      // e.g., "Mounika"
+            lastName: testLastName,        // e.g., "M"
+            email: testEmail,              // e.g., "mounika@elbrit.org"
+            phone: testPhone,              // e.g., "+919345405242"
             novuSecretKey
           });
 
