@@ -84,7 +84,7 @@ async function fetchOneSignalIdFromOneSignal(deviceToken) {
 async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName, email, phone, novuSecretKey }) {
   if (!subscriberId || !novuSecretKey) {
     console.warn('⚠️ Missing subscriberId or novuSecretKey for Novu subscriber creation');
-    return;
+    return { success: false, error: 'Missing required parameters' };
   }
 
   const headers = {
@@ -95,13 +95,16 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
 
   const payload = {
     subscriberId,
-    firstName,
-    lastName,
-    email,
-    phone
+    firstName: firstName || null,
+    lastName: lastName || null,
+    email: email || null,
+    phone: phone || null
   };
 
-  // Create subscriber (ignore if already exists via failIfExists flag)
+  console.log('📝 Creating/updating Novu subscriber with payload:', payload);
+
+  // Step 1: Try to create subscriber (will return 409 if already exists)
+  let createSuccess = false;
   try {
     const createRes = await fetch(`https://api.novu.co/v2/subscribers?failIfExists=true`, {
       method: 'POST',
@@ -111,18 +114,28 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
 
     if (createRes.ok) {
       console.log('✅ Novu subscriber created successfully:', subscriberId);
+      createSuccess = true;
     } else if (createRes.status === 409) {
       console.log('ℹ️ Novu subscriber already exists, will update:', subscriberId);
+      createSuccess = true; // Subscriber exists, proceed to update
     } else {
       const errText = await createRes.text();
-      console.warn('⚠️ Novu subscriber create failed:', createRes.status, errText);
+      console.error('❌ Novu subscriber create failed:', createRes.status, errText);
+      // Continue to try update even if create fails
     }
   } catch (err) {
-    console.warn('⚠️ Novu subscriber create exception:', err);
+    console.error('❌ Novu subscriber create exception:', err);
+    // Continue to try update
   }
 
-  // Update to ensure latest profile data
+  // Step 2: Always update to ensure latest profile data (works for both new and existing subscribers)
+  let updateSuccess = false;
   try {
+    // Wait a bit to ensure subscriber is fully created if it was just created
+    if (createSuccess) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
     const updateRes = await fetch(`https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`, {
       method: 'PUT',
       headers,
@@ -130,13 +143,18 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
     });
 
     if (updateRes.ok) {
-      console.log('✅ Novu subscriber updated successfully:', subscriberId);
+      const updateData = await updateRes.json().catch(() => ({}));
+      console.log('✅ Novu subscriber updated successfully:', subscriberId, updateData);
+      updateSuccess = true;
+      return { success: true, created: createSuccess, updated: true, data: updateData };
     } else {
       const errText = await updateRes.text();
-      console.warn('⚠️ Novu subscriber update failed:', updateRes.status, errText);
+      console.error('❌ Novu subscriber update failed:', updateRes.status, errText);
+      return { success: false, error: `Update failed: ${updateRes.status}`, details: errText };
     }
   } catch (err) {
-    console.warn('⚠️ Novu subscriber update exception:', err);
+    console.error('❌ Novu subscriber update exception:', err);
+    return { success: false, error: 'Update exception', details: err.message };
   }
 }
 
@@ -481,7 +499,7 @@ export default async function handler(req, res) {
           // Use employeeId as subscriber ID
           const subscriberId = employeeId;
           
-          // TEST VALUES - Using sample data for testing
+          // TEST VALUES - Using hardcoded sample data for testing
           const testFirstName = "Mounika";
           const testLastName = "M";
           const testEmail = "mounika@elbrit.org";
@@ -496,7 +514,7 @@ export default async function handler(req, res) {
           });
           
           // First, create/update subscriber profile in Novu with contact info
-          await createOrUpdateNovuSubscriber({
+          const subscriberResult = await createOrUpdateNovuSubscriber({
             subscriberId: subscriberId || "IN003",  // e.g., "IN003"
             firstName: testFirstName,      // e.g., "Mounika"
             lastName: testLastName,        // e.g., "M"
@@ -504,6 +522,14 @@ export default async function handler(req, res) {
             phone: testPhone,              // e.g., "+919345405242"
             novuSecretKey
           });
+
+          if (!subscriberResult?.success) {
+            console.error('❌ Failed to create/update Novu subscriber:', subscriberResult?.error);
+            // Continue anyway to try credentials update
+          }
+
+          // Wait a bit to ensure subscriber is fully created/updated before updating credentials
+          await new Promise((resolve) => setTimeout(resolve, 500));
 
           // Then update credentials with OneSignal device tokens
           // Fetch OneSignal ID from OneSignal API and use it as deviceToken
