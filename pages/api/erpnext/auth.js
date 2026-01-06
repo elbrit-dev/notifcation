@@ -91,13 +91,17 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
     'idempotency-key': subscriberId
   };
 
+  // Build payload - only include non-null values
   const payload = {
-    subscriberId,
-    firstName,
-    lastName,
-    email,
-    phone
+    subscriberId: String(subscriberId)
   };
+  
+  if (firstName) payload.firstName = firstName;
+  if (lastName) payload.lastName = lastName;
+  if (email) payload.email = email;
+  if (phone) payload.phone = phone;
+
+  console.log('📤 Sending subscriber payload to Novu:', JSON.stringify(payload, null, 2));
 
   // Create subscriber (ignore if already exists via failIfExists flag)
   try {
@@ -108,7 +112,8 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
     });
 
     if (createRes.ok) {
-      console.log('✅ Novu subscriber created successfully:', subscriberId);
+      const createData = await createRes.json().catch(() => null);
+      console.log('✅ Novu subscriber created successfully:', subscriberId, createData);
     } else if (createRes.status === 409) {
       console.log('ℹ️ Novu subscriber already exists, will update:', subscriberId);
     } else {
@@ -119,22 +124,43 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
     console.warn('⚠️ Novu subscriber create exception:', err);
   }
 
+  // Wait a bit to ensure subscriber is fully created before updating
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
   // Update to ensure latest profile data
   try {
+    console.log('🔄 Updating Novu subscriber with latest data:', JSON.stringify(payload, null, 2));
+    
     const updateRes = await fetch(`https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`, {
       method: 'PUT',
-      headers,
+      headers: {
+        Authorization: `ApiKey ${novuSecretKey}`,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(payload)
     });
 
     if (updateRes.ok) {
-      console.log('✅ Novu subscriber updated successfully:', subscriberId);
+      const updateData = await updateRes.json().catch(() => null);
+      console.log('✅ Novu subscriber updated successfully:', {
+        subscriberId,
+        firstName: payload.firstName || 'NOT SET',
+        lastName: payload.lastName || 'NOT SET',
+        email: payload.email || 'NOT SET',
+        phone: payload.phone || 'NOT SET',
+        response: updateData
+      });
     } else {
       const errText = await updateRes.text();
-      console.warn('⚠️ Novu subscriber update failed:', updateRes.status, errText);
+      console.error('❌ Novu subscriber update failed:', {
+        status: updateRes.status,
+        statusText: updateRes.statusText,
+        error: errText,
+        payload: payload
+      });
     }
   } catch (err) {
-    console.warn('⚠️ Novu subscriber update exception:', err);
+    console.error('❌ Novu subscriber update exception:', err);
   }
 }
 
@@ -479,6 +505,22 @@ export default async function handler(req, res) {
           // Use employeeId as subscriber ID
           const subscriberId = employeeId;
           
+          // Log raw userData for debugging
+          console.log('🔍 Raw userData from ERPNext:', {
+            displayName: userData.displayName,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            email: userData.email,
+            phoneNumber: userData.phoneNumber,
+            employeeData: userData.employeeData ? {
+              first_name: userData.employeeData.first_name,
+              last_name: userData.employeeData.last_name,
+              company_email: userData.employeeData.company_email,
+              cell_number: userData.employeeData.cell_number,
+              fsl_whatsapp_number: userData.employeeData.fsl_whatsapp_number
+            } : 'NOT AVAILABLE'
+          });
+          
           // Extract user data from ERPNext for subscriber
           const subscriberFirstName = userData.displayName?.split(' ')[0] || 
                                      userData.firstName || 
@@ -496,12 +538,18 @@ export default async function handler(req, res) {
                                 userData.employeeData?.fsl_whatsapp_number || 
                                 "+919345405242";
           
-          console.log('📝 Creating/updating Novu subscriber with ERPNext user data:', {
+          console.log('📝 Extracted subscriber data for Novu:', {
             subscriberId,
             firstName: subscriberFirstName,
             lastName: subscriberLastName,
             email: subscriberEmail,
-            phone: subscriberPhone
+            phone: subscriberPhone,
+            source: {
+              firstName: userData.displayName ? 'displayName' : userData.firstName ? 'firstName' : userData.employeeData?.first_name ? 'employeeData.first_name' : 'FALLBACK',
+              lastName: userData.displayName ? 'displayName' : userData.lastName ? 'lastName' : userData.employeeData?.last_name ? 'employeeData.last_name' : 'FALLBACK',
+              email: userData.email ? 'email' : userData.employeeData?.company_email ? 'employeeData.company_email' : 'FALLBACK',
+              phone: userData.phoneNumber ? 'phoneNumber' : userData.employeeData?.cell_number ? 'cell_number' : userData.employeeData?.fsl_whatsapp_number ? 'fsl_whatsapp_number' : 'FALLBACK'
+            }
           });
           
           // First, create/update subscriber profile in Novu with contact info
