@@ -191,31 +191,13 @@ export default async function handler(req, res) {
       });
     }
 
-    // Get OneSignal ID (onesignal_id) for device token
-    // Priority: Use oneSignalId directly if provided (it's already the onesignal_id)
-    // Otherwise, fetch it from OneSignal API using subscription ID
-    let onesignalIdForDeviceToken = null;
-    
-    if (oneSignalId) {
-      // oneSignalId is already the OneSignal ID (onesignal_id), use it directly
-      console.log('✅ Using provided OneSignal ID directly:', oneSignalId);
-      onesignalIdForDeviceToken = oneSignalId;
-    } else if (oneSignalSubscriptionId) {
-      // Only subscription ID provided, need to fetch the OneSignal ID from OneSignal API
-      console.log('🔍 Fetching OneSignal ID from subscription ID:', oneSignalSubscriptionId);
-      onesignalIdForDeviceToken = await fetchOneSignalIdFromOneSignal(oneSignalSubscriptionId);
-      
-      if (!onesignalIdForDeviceToken) {
-        console.warn('⚠️ Could not fetch OneSignal ID from subscription ID. Push notifications may not work.');
-      } else {
-        console.log('✅ OneSignal ID retrieved:', onesignalIdForDeviceToken);
-      }
-    }
+    const deviceTokenToFetch = oneSignalSubscriptionId || oneSignalId;
+    const onesignalIdForDeviceToken = deviceTokenToFetch ? await fetchOneSignalIdFromOneSignal(deviceTokenToFetch) : null;
     
     if (onesignalIdForDeviceToken) {
       const updateParams = {
         providerId: ChatOrPushProviderEnum.OneSignal,
-        credentials: { deviceTokens: [onesignalIdForDeviceToken] } // Must be OneSignal ID (onesignal_id)
+        credentials: { deviceTokens: [onesignalIdForDeviceToken] }
       };
 
       const integrationIdentifier = process.env.NOVU_INTEGRATION_IDENTIFIER || process.env.NEXT_PUBLIC_NOVU_INTEGRATION_IDENTIFIER;
@@ -225,8 +207,7 @@ export default async function handler(req, res) {
 
       try {
         await novu.subscribers.credentials.update(updateParams, subscriberId);
-        console.log('✅ OneSignal credentials updated with OneSignal ID:', onesignalIdForDeviceToken);
-        console.log('📱 Device token (OneSignal ID) sent to Novu:', onesignalIdForDeviceToken);
+        console.log('✅ OneSignal credentials updated:', subscriberId);
       } catch (credError) {
         console.error('❌ OneSignal credentials update failed:', credError.message);
         return res.status(500).json({
@@ -234,9 +215,6 @@ export default async function handler(req, res) {
           details: credError.message
         });
       }
-    } else {
-      console.warn('⚠️ No OneSignal ID available - subscriber created but push notifications will not work');
-      console.warn('💡 Provide either oneSignalId (OneSignal ID) or oneSignalSubscriptionId to enable push notifications');
     }
 
     return res.status(200).json({

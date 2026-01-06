@@ -15,9 +15,9 @@ const subscriberData = {
   subscriberId: 'IN003', // Employee ID
   email: 'mounika@elbrit.org',
   displayName: 'mounika M',
-  oneSignalSubscriptionId: 'efcf8968-c284-4624-8bf9-5856cf2b304d', // Subscription ID
+  oneSignalSubscriptionId: '85eacb69-525c-41c5-8c24-1d59a64e7b90', // Subscription ID
   externalId: 'mounika@elbrit.org',
-  oneSignalId: 'be812f1b-391a-4e77-9275-cd7276088e40'
+  oneSignalId: 'c4ec3fc2-e56c-45e4-a0b5-80de63a2e6d5'
 };
 
 async function createSubscriber() {
