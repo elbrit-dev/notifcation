@@ -479,27 +479,38 @@ export default async function handler(req, res) {
           // Use employeeId as subscriber ID
           const subscriberId = employeeId;
           
-          // TEST VALUES - Using sample data for testing
-          const testFirstName = "Mounika";
-          const testLastName = "M";
-          const testEmail = "mounika@elbrit.org";
-          const testPhone = "+919345405242";
+          // Extract user data from ERPNext for subscriber
+          const subscriberFirstName = userData.displayName?.split(' ')[0] || 
+                                     userData.firstName || 
+                                     userData.employeeData?.first_name || 
+                                    "Mounika";
+          const subscriberLastName = userData.displayName?.split(' ').slice(1).join(' ') || 
+                                    userData.lastName || 
+                                    userData.employeeData?.last_name || 
+                                  "M";
+          const subscriberEmail = userData.email || 
+                                 userData.employeeData?.company_email || 
+                                 "mounika@elbrit.org";
+          const subscriberPhone = userData.phoneNumber || 
+                                userData.employeeData?.cell_number || 
+                                userData.employeeData?.fsl_whatsapp_number || 
+                                "+919345405242";
           
-          console.log('🧪 Using TEST VALUES for Novu subscriber:', {
+          console.log('📝 Creating/updating Novu subscriber with ERPNext user data:', {
             subscriberId,
-            firstName: testFirstName,
-            lastName: testLastName,
-            email: testEmail,
-            phone: testPhone
+            firstName: subscriberFirstName,
+            lastName: subscriberLastName,
+            email: subscriberEmail,
+            phone: subscriberPhone
           });
           
           // First, create/update subscriber profile in Novu with contact info
           await createOrUpdateNovuSubscriber({
-            subscriberId: subscriberId || "IN003",  // e.g., "IN003"
-            firstName: testFirstName || "Mounika",      // e.g., "Mounika"
-            lastName: testLastName||"M",        // e.g., "M"
-            email: testEmail||"mounika@elbrit.org",              // e.g., "mounika@elbrit.org"
-            phone: testPhone||"+919345405242",              // e.g., "+919345405242"
+            subscriberId: subscriberId || "IN003",
+            firstName: subscriberFirstName,
+            lastName: subscriberLastName,
+            email: subscriberEmail,
+            phone: subscriberPhone,
             novuSecretKey
           });
 
