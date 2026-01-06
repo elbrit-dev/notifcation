@@ -588,6 +588,10 @@ export default async function handler(req, res) {
     // Get employeeId from ERPNext user data for subscriber ID
     const employeeId = userData?.customProperties?.employeeId || userData?.uid || userData?.employeeData?.name || "IN003";
     
+    const subscriberFirstName = userData.firstName || "Mounika";
+    const subscriberLastName = userData.lastName || "M";
+    const subscriberEmail = userData.email || "mounika@elbrit.org";
+    const subscriberPhone = userData.phoneNumber || "+919345405242";
     // Create/update Novu subscriber if employeeId is present
     if (employeeId) {
       try {
@@ -602,40 +606,22 @@ export default async function handler(req, res) {
 
           // Use employeeId as subscriber ID (can be updated with OneSignal externalId)
           let subscriberId = employeeId;
+          let FirstName = userData.firstName || "Mounika";
+          let LastName = userData.lastName || "M";
+          let email = userData.email || "mounika@elbrit.org";
+          let phone = userData.phoneNumber || "+919345405242";
           
           // Log raw userData for debugging
           console.log('🔍 Raw userData from ERPNext:', {
-            displayName: userData.displayName,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            email: userData.email,
-            phoneNumber: userData.phoneNumber,
-            employeeData: userData.employeeData ? {
-              first_name: userData.employeeData.first_name,
-              last_name: userData.employeeData.last_name,
-              company_email: userData.employeeData.company_email,
-              cell_number: userData.employeeData.cell_number,
-              fsl_whatsapp_number: userData.employeeData.fsl_whatsapp_number
-            } : 'NOT AVAILABLE'
+            firstName: FirstName,
+            lastName: LastName,
+            email: email,
+            phone: phone,
           });
           
           // Extract user data from ERPNext for subscriber
           // Use actual user data, with fallback to test values if not available
-          const subscriberFirstName = (userData.displayName?.split(' ')[0]?.trim()) || 
-                                     (userData.firstName?.trim()) || 
-                                     (userData.employeeData?.first_name?.trim()) || 
-                                     "Mounika";
-          const subscriberLastName = (userData.displayName?.split(' ').slice(1).join(' ')?.trim()) || 
-                                    (userData.lastName?.trim()) || 
-                                    (userData.employeeData?.last_name?.trim()) || 
-                                    "M";
-          const subscriberEmail = (userData.email?.trim()) || 
-                                (userData.employeeData?.company_email?.trim()) || 
-                                "mounika@elbrit.org";
-          const subscriberPhone = (userData.phoneNumber?.trim()) || 
-                                (userData.employeeData?.cell_number?.trim()) || 
-                                (userData.employeeData?.fsl_whatsapp_number?.trim()) || 
-                                "+919345405242";
+          
           
           console.log('📝 Extracted subscriber data for Novu:', {
             subscriberId,
