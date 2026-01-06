@@ -29,11 +29,7 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
       body: JSON.stringify(payload)
     });
 
-    if (createRes.ok) {
-      console.log('✅ Novu subscriber created successfully:', subscriberId);
-    } else if (createRes.status === 409) {
-      console.log('ℹ️ Novu subscriber already exists, will update:', subscriberId);
-    } else {
+    if (!createRes.ok && createRes.status !== 409) {
       const errText = await createRes.text();
       console.warn('⚠️ Novu subscriber create failed:', createRes.status, errText);
     }
@@ -49,9 +45,7 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
       body: JSON.stringify(payload)
     });
 
-    if (updateRes.ok) {
-      console.log('✅ Novu subscriber updated successfully:', subscriberId);
-    } else {
+    if (!updateRes.ok) {
       const errText = await updateRes.text();
       console.warn('⚠️ Novu subscriber update failed:', updateRes.status, errText);
     }
@@ -71,16 +65,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Email or phone number is required' });
   }
 
-  // Log received OneSignal IDs for debugging
-  console.log('📥 Received OneSignal IDs from client:', {
-    email: email || phoneNumber,
-    oneSignalPlayerId: oneSignalPlayerId || 'NOT PROVIDED',
-    oneSignalSubscriptionId: oneSignalSubscriptionId || 'NOT PROVIDED',
-    playerIdType: typeof oneSignalPlayerId,
-    subscriptionIdType: typeof oneSignalSubscriptionId,
-    playerIdLength: oneSignalPlayerId ? oneSignalPlayerId.length : 0,
-    subscriptionIdLength: oneSignalSubscriptionId ? oneSignalSubscriptionId.length : 0
-  });
 
   try {
     // ERPNext API configuration
@@ -93,12 +77,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'ERPNext configuration missing' });
     }
 
-    console.log('🔐 ERPNext Auth Request:', { email, phoneNumber, authProvider });
-    console.log('🔧 ERPNext Config:', { 
-      url: erpnextUrl, 
-      hasApiKey: !!erpnextApiKey, 
-      hasApiSecret: !!erpnextApiSecret 
-    });
 
     // Always search by company_email for role-based access
     // For Microsoft SSO: use email directly as company_email
@@ -113,8 +91,6 @@ export default async function handler(req, res) {
       
       // Clean phone number (remove +91 country code)
       const cleanedPhoneNumber = phoneNumber.replace(/^\+91/, '').replace(/^\+/, '');
-      console.log('📱 Original phone number:', phoneNumber);
-      console.log('📱 Cleaned phone number:', cleanedPhoneNumber);
       
       // Search Employee table by phone number to get employee ID
       const employeeSearchUrl = `${erpnextUrl}/api/resource/Employee`;
@@ -124,8 +100,6 @@ export default async function handler(req, res) {
         ]),
         fields: JSON.stringify(['name', 'first_name', 'cell_number', 'fsl_whatsapp_number', 'company_email', 'kly_role_id', 'status'])
       });
-
-      console.log('🔍 Searching Employee table for phone number:', phoneNumber);
       
       const employeeResponse = await fetch(`${employeeSearchUrl}?${employeeSearchParams}`, {
         method: 'GET',
@@ -137,15 +111,12 @@ export default async function handler(req, res) {
 
       if (employeeResponse.ok) {
         const employeeResult = await employeeResponse.json();
-        console.log('📊 Employee search result:', employeeResult);
-        console.log('📊 Employee data count:', employeeResult.data?.length || 0);
 
         if (employeeResult.data && employeeResult.data.length > 0) {
           const employee = employeeResult.data[0];
           
           // Check if employee status is Active
           if (employee.status !== 'Active') {
-            console.warn('⚠️ Employee account is not active:', phoneNumber, 'Status:', employee.status);
             return res.status(403).json({
               success: false,
               error: 'Access Denied',
@@ -161,17 +132,11 @@ export default async function handler(req, res) {
           
           // Store employee ID for direct fetch
           employeeIdFromPhone = employee.name;
-          console.log('✅ Found employee ID for phone user:', employeeIdFromPhone);
-          console.log('✅ Employee details:', employee);
           
           // If company_email exists, use it as searchValue for Microsoft SSO compatibility
-          // If not, we'll fetch directly by employee ID later
           if (employee.company_email) {
             companyEmail = employee.company_email;
             searchValue = companyEmail;
-            console.log('✅ Company email available:', companyEmail);
-          } else {
-            console.log('⚠️ No company email - will fetch by employee ID:', employeeIdFromPhone);
           }
         } else {
           console.warn('⚠️ No employee found for phone number:', phoneNumber);
@@ -209,11 +174,7 @@ export default async function handler(req, res) {
 
     // If we have employee ID from phone auth, fetch directly by ID
     if (employeeIdFromPhone) {
-      console.log('🔍 Fetching employee data by ID:', employeeIdFromPhone);
-      
       const employeeUrl = `${erpnextUrl}/api/resource/Employee/${employeeIdFromPhone}`;
-      
-      console.log('🔍 Making ERPNext API call to:', employeeUrl);
       
       const employeeResponse = await fetch(employeeUrl, {
         method: 'GET',
@@ -223,11 +184,8 @@ export default async function handler(req, res) {
         }
       });
 
-      console.log('📡 ERPNext API Response Status:', employeeResponse.status);
-
       if (employeeResponse.ok) {
         const employeeResult = await employeeResponse.json();
-        console.log('📊 ERPNext Employee fetch result:', employeeResult);
 
         if (employeeResult.data) {
           const employee = employeeResult.data;
@@ -270,26 +228,16 @@ export default async function handler(req, res) {
             employeeData: employee
           };
           userSource = 'employee_by_id';
-          console.log('✅ Found user in Employee table by ID:', userData);
         }
-      } else {
-        const errorText = await employeeResponse.text();
-        console.warn('⚠️ Employee fetch by ID failed:', employeeResponse.status);
-        console.warn('⚠️ Error response:', errorText);
       }
     } 
     // Otherwise, search by company_email (for Microsoft SSO)
     else if (searchValue) {
-      console.log('🔍 Searching for user by company_email:', searchValue);
-      
       const employeeSearchUrl = `${erpnextUrl}/api/resource/Employee`;
       const employeeSearchParams = new URLSearchParams({
         filters: JSON.stringify([['company_email', '=', searchValue]]),
         fields: JSON.stringify(['name', 'first_name', 'employee_name', 'cell_number', 'fsl_whatsapp_number', 'company_email', 'kly_role_id', 'status', 'department', 'designation', 'date_of_joining', 'date_of_birth'])
       });
-
-      console.log('🔍 Searching Employee table by company_email:', employeeSearchUrl);
-      console.log('🔍 Search params:', employeeSearchParams.toString());
       
       const employeeResponse = await fetch(`${employeeSearchUrl}?${employeeSearchParams}`, {
         method: 'GET',
@@ -299,11 +247,8 @@ export default async function handler(req, res) {
         }
       });
 
-      console.log('📡 ERPNext API Response Status:', employeeResponse.status);
-
       if (employeeResponse.ok) {
         const employeeResult = await employeeResponse.json();
-        console.log('📊 ERPNext Employee search result:', employeeResult);
 
         if (employeeResult.data && employeeResult.data.length > 0) {
           const employee = employeeResult.data[0];
@@ -346,19 +291,12 @@ export default async function handler(req, res) {
             employeeData: employee
           };
           userSource = 'employee_by_email';
-          console.log('✅ Found user in Employee table by company_email:', userData);
         }
-      } else {
-        const errorText = await employeeResponse.text();
-        console.warn('⚠️ Employee search by email failed:', employeeResponse.status);
-        console.warn('⚠️ Error response:', errorText);
       }
     }
 
     // If user not found in ERPNext, reject access
     if (!userData) {
-      console.log('❌ User not found in ERPNext by company_email:', searchValue);
-      console.log('❌ Access denied - user not in organization');
       
       return res.status(403).json({
         success: false,
@@ -372,16 +310,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // Generate a simple token (you can implement JWT if needed)
+    // Generate a simple token
     const token = Buffer.from(`${userData.uid}:${Date.now()}`).toString('base64');
-
-    console.log('✅ ERPNext Auth successful:', {
-      userSource,
-      companyEmail: searchValue,
-      email: userData.email,
-      role: userData.role,
-      authProvider: userData.authProvider
-    });
 
     // Get employeeId from ERPNext user data for subscriber ID
     const employeeId = userData?.customProperties?.employeeId || userData?.uid || userData?.employeeData?.name || null;
@@ -401,123 +331,44 @@ export default async function handler(req, res) {
           // Use employeeId as subscriber ID
           const subscriberId = employeeId;
           
-          // TEST VALUES - Using sample data for testing
-          const testFirstName = "Mounika";
-          const testLastName = "M";
-          const testEmail = "mounika@elbrit.org";
-          const testPhone = "+919345405242";
+          // Extract user data from ERPNext
+          const subscriberFirstName = userData.displayName?.split(' ')[0] || userData.employeeData?.first_name || "Mounika";
+          const subscriberLastName = userData.displayName?.split(' ').slice(1).join(' ') || userData.employeeData?.last_name || "M";
+          const subscriberEmail = userData.email || userData.employeeData?.company_email || "mounika@elbrit.org";
+          const subscriberPhone = userData.phoneNumber || userData.employeeData?.cell_number || "+919345405242";
           
-          console.log('🧪 Using TEST VALUES for Novu subscriber:', {
-            subscriberId,
-            firstName: testFirstName,
-            lastName: testLastName,
-            email: testEmail,
-            phone: testPhone
-          });
-          
-          // First, create/update subscriber profile in Novu with contact info
+          // Create/update subscriber profile in Novu
           await createOrUpdateNovuSubscriber({
-            subscriberId: subscriberId || "IN003",  // e.g., "IN003"
-            firstName: testFirstName,      // e.g., "Mounika"
-            lastName: testLastName,        // e.g., "M"
-            email: testEmail,              // e.g., "mounika@elbrit.org"
-            phone: testPhone,              // e.g., "+919345405242"
+            subscriberId: subscriberId || "IN003",
+            firstName: subscriberFirstName,
+            lastName: subscriberLastName,
+            email: subscriberEmail,
+            phone: subscriberPhone,
             novuSecretKey
           });
 
-          // Then update credentials with OneSignal device tokens
-          // Use ONLY onesignalId (Player ID) as device token - no fallback
-          
-          console.log('🔍 Checking OneSignal IDs for device token:', {
-            subscriberId,
-            oneSignalPlayerId: oneSignalPlayerId || 'NOT RECEIVED',
-            oneSignalSubscriptionId: oneSignalSubscriptionId || 'NOT RECEIVED',
-            playerIdType: typeof oneSignalPlayerId,
-            subscriptionIdType: typeof oneSignalSubscriptionId
-          });
-          
-          // Validate and clean device token
-          const cleanToken = (token) => {
-            if (!token) return null;
-            if (typeof token !== 'string') {
-              console.warn('⚠️ Device token is not a string:', typeof token, token);
-              return null;
-            }
-            const cleaned = token.trim();
-            if (cleaned.length === 0) {
-              console.warn('⚠️ Device token is empty after trimming');
-              return null;
-            }
-            return cleaned;
-          };
-          
-          const validPlayerId = cleanToken(oneSignalPlayerId);
-          
-          console.log('🔍 Device Token Validation:', {
-            subscriberId,
-            rawPlayerId: oneSignalPlayerId || 'NULL',
-            validPlayerId: validPlayerId || 'INVALID',
-            deviceTokenToUse: validPlayerId || 'NONE (onesignalId required)'
-          });
-          
-          if (validPlayerId) {
+          // Update credentials with OneSignal device token
+          if (oneSignalPlayerId && typeof oneSignalPlayerId === 'string' && oneSignalPlayerId.trim()) {
+            const validPlayerId = oneSignalPlayerId.trim();
             const integrationIdentifier = process.env.NOVU_INTEGRATION_IDENTIFIER || process.env.NEXT_PUBLIC_NOVU_INTEGRATION_IDENTIFIER || null;
 
             const updateParams = {
               providerId: ChatOrPushProviderEnum.OneSignal,
               credentials: {
-                deviceTokens: [validPlayerId], // Using ONLY onesignalId (Player ID) as device token
+                deviceTokens: [validPlayerId],
               },
             };
 
-            // Add integrationIdentifier if provided
             if (integrationIdentifier) {
               updateParams.integrationIdentifier = integrationIdentifier;
             }
 
-            console.log('📤 Updating Novu credentials with device token:', {
-              subscriberId,
-              deviceToken: validPlayerId,
-              tokenType: 'onesignalId (Player ID)',
-              integrationIdentifier: integrationIdentifier || 'NOT SET',
-              endpoint: `PUT /v2/subscribers/${subscriberId}/credentials`
-            });
-
             try {
-              const credResult = await novu.subscribers.credentials.update(updateParams, subscriberId);
-
-              console.log('✅ Novu Dashboard - Device Credentials Updated Successfully:', {
-                subscriberId,
-                status: 'Success',
-                deviceToken: validPlayerId,
-                tokenType: 'onesignalId (Player ID)',
-                integrationIdentifier: integrationIdentifier || 'NOT SET',
-                response: credResult || 'Success',
-                dashboardUrl: `https://web.novu.co/subscribers/${subscriberId}`,
-                pushChannelStatus: '✅ Active - Ready for push notifications'
-              });
+              await novu.subscribers.credentials.update(updateParams, subscriberId);
             } catch (credError) {
-              console.error('❌ Novu Dashboard - Device Credentials Update Failed:', {
-                subscriberId,
-                error: credError.message || credError,
-                response: credError.response?.data || 'No response data',
-                deviceToken: validPlayerId,
-                integrationIdentifier,
-                dashboardUrl: `https://web.novu.co/subscribers/${subscriberId}`
-              });
+              console.error('❌ Failed to update Novu credentials:', credError.message || credError);
             }
-          } else {
-            console.warn('⚠️ OneSignal Player ID (onesignalId) not available - subscriber created but credentials not updated');
-            console.warn('   Push notifications will not work until onesignalId is available');
-            console.warn('   Check browser console for OneSignal ID retrieval logs');
           }
-
-          console.log('✅ Novu subscriber created/updated:', {
-            subscriberId: employeeId,
-            email: userData.email,
-            phone: userData.phoneNumber,
-            displayName: userData.displayName
-          });
         } else {
           console.warn('⚠️ Novu secret key not found. Skipping Novu subscriber creation.');
         }
