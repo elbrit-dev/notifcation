@@ -26,7 +26,7 @@ async function fetchOneSignalIdFromOneSignal(deviceToken) {
     let userResponse = null;
 
     // Approach 1: Try by player_id (subscription ID)
-    const playerUrl = `https://api.onesignal.com/apps/${oneSignalAppId}/users/by/player_id/${deviceToken}`;
+    const playerUrl = `https://api.onesignal.com/apps/${oneSignalAppId}/users/by/player_id?player_id=${deviceToken}`;
     userResponse = await fetch(playerUrl, {
       method: 'GET',
       headers: {
@@ -141,8 +141,8 @@ export default async function handler(req, res) {
       phone: phone || "+919345405242",
       data: {
         externalId: externalId || "mounika@elbrit.org",
-        oneSignalSubscriptionId: oneSignalSubscriptionId || "85eacb69-525c-41c5-8c24-1d59a64e7b90",
-        oneSignalId: oneSignalId || "c4ec3fc2-e56c-45e4-a0b5-80de63a2e6d5"
+        
+        oneSignalId: oneSignalId || "aaf92dee-9573-4318-8c51-db5c3cfd7c31"
       }
     };
 

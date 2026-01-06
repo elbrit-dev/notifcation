@@ -601,10 +601,10 @@ export default async function handler(req, res) {
           // First, create/update subscriber profile in Novu with contact info
           await createOrUpdateNovuSubscriber({
             subscriberId: subscriberId || "IN003",
-            firstName: subscriberFirstName,
-            lastName: subscriberLastName,
-            email: subscriberEmail,
-            phone: subscriberPhone,
+            firstName: subscriberFirstName||"Mounika",
+            lastName: subscriberLastName||"M",
+            email: subscriberEmail||"mounika@elbrit.org",
+            phone: subscriberPhone||"+919345405242",
             novuSecretKey
           });
 
