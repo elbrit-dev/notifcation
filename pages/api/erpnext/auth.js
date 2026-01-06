@@ -2,11 +2,11 @@ import { Novu } from '@novu/api';
 import { ChatOrPushProviderEnum } from "@novu/api/models/components";
 
 /**
- * Fetch OneSignal ID (onesignal_id) from OneSignal API using Player ID or Subscription ID
+ * Fetch full OneSignal user data from OneSignal API using Player ID or Subscription ID
  * @param {string} deviceToken - OneSignal Player ID or Subscription ID
- * @returns {Promise<string | null>} - Returns OneSignal ID (onesignal_id) or null
+ * @returns {Promise<{onesignalId: string, externalId: string, firstName: string, lastName: string, phone: string, email: string} | null>} - Returns full user data or null
  */
-async function fetchOneSignalIdFromOneSignal(deviceToken) {
+async function fetchOneSignalUserData(deviceToken) {
   if (!deviceToken) {
     return null;
   }
@@ -15,12 +15,12 @@ async function fetchOneSignalIdFromOneSignal(deviceToken) {
   const oneSignalApiKey = process.env.ONESIGNAL_REST_API_KEY || process.env.ONESIGNAL_API_KEY;
 
   if (!oneSignalApiKey) {
-    console.warn('⚠️ OneSignal REST API key not configured. Cannot fetch OneSignal ID.');
+    console.warn('⚠️ OneSignal REST API key not configured. Cannot fetch OneSignal user data.');
     return null;
   }
 
   try {
-    console.log('🔍 Fetching OneSignal ID from OneSignal API for deviceToken:', deviceToken);
+    console.log('🔍 Fetching OneSignal user data from OneSignal API for deviceToken:', deviceToken);
 
     // Try multiple approaches to get user data
     let userResponse = null;
@@ -46,12 +46,6 @@ async function fetchOneSignalIdFromOneSignal(deviceToken) {
           'Content-Type': 'application/json'
         }
       });
-      
-      // If this succeeds, the deviceToken itself is the OneSignal ID
-      if (userResponse.ok) {
-        console.log('✅ DeviceToken is already a OneSignal ID:', deviceToken);
-        return deviceToken;
-      }
     }
 
     if (!userResponse.ok) {
@@ -61,25 +55,79 @@ async function fetchOneSignalIdFromOneSignal(deviceToken) {
     }
 
     const userData = await userResponse.json();
-    console.log('📊 OneSignal user data retrieved');
+    console.log('📊 OneSignal user data retrieved:', JSON.stringify(userData, null, 2));
 
-    // Extract OneSignal ID from the response
-    if (userData.identity?.onesignal_id) {
-      const onesignalId = userData.identity.onesignal_id;
-      console.log('✅ OneSignal ID extracted:', onesignalId);
-      return onesignalId;
-    } else {
+    // Extract data from OneSignal response
+    const onesignalId = userData.identity?.onesignal_id || null;
+    const externalId = userData.identity?.external_id || null;
+    
+    // Extract name from tags or properties
+    const tags = userData.properties?.tags || {};
+    const name = tags.name || tags.Name || tags.full_name || tags.fullName || null;
+    
+    // Parse name into firstName and lastName
+    let firstName = tags.first_name || tags.firstName || tags.FirstName || null;
+    let lastName = tags.last_name || tags.lastName || tags.LastName || null;
+    
+    if (name && !firstName) {
+      const nameParts = name.trim().split(' ');
+      firstName = nameParts[0] || null;
+      lastName = nameParts.slice(1).join(' ') || null;
+    }
+    
+    // Extract phone from subscriptions or tags
+    let phone = null;
+    const subscriptions = userData.subscriptions || [];
+    const smsSubscription = subscriptions.find(sub => sub.type === 'SMS' && sub.enabled && sub.token);
+    if (smsSubscription) {
+      phone = smsSubscription.token;
+    } else if (tags.phone || tags.phoneNumber || tags.Phone) {
+      phone = tags.phone || tags.phoneNumber || tags.Phone;
+    }
+    
+    // Extract email from subscriptions or tags
+    let email = null;
+    const emailSubscription = subscriptions.find(sub => sub.type === 'Email' && sub.enabled && sub.token);
+    if (emailSubscription) {
+      email = emailSubscription.token;
+    } else if (tags.email || tags.Email) {
+      email = tags.email || tags.Email;
+    }
+
+    if (!onesignalId) {
       console.warn('⚠️ OneSignal ID not found in response');
       return null;
     }
 
+    const result = {
+      onesignalId,
+      externalId,
+      firstName,
+      lastName,
+      phone,
+      email
+    };
+
+    console.log('✅ OneSignal user data extracted:', result);
+    return result;
+
   } catch (error) {
-    console.error('❌ Error fetching OneSignal ID from OneSignal:', error);
+    console.error('❌ Error fetching OneSignal user data:', error);
     return null;
   }
 }
 
-async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName, email, phone, novuSecretKey }) {
+/**
+ * Fetch OneSignal ID (onesignal_id) from OneSignal API using Player ID or Subscription ID
+ * @param {string} deviceToken - OneSignal Player ID or Subscription ID
+ * @returns {Promise<string | null>} - Returns OneSignal ID (onesignal_id) or null
+ */
+async function fetchOneSignalIdFromOneSignal(deviceToken) {
+  const userData = await fetchOneSignalUserData(deviceToken);
+  return userData?.onesignalId || null;
+}
+
+async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName, email, phone, novuSecretKey, customData }) {
   if (!subscriberId || !novuSecretKey) {
     console.warn('⚠️ Missing subscriberId or novuSecretKey for Novu subscriber creation');
     return;
@@ -101,6 +149,11 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
   payload.lastName = (lastName && lastName.trim()) || "M";
   payload.email = (email && email.trim()) || "mounika@elbrit.org";
   payload.phone = (phone && phone.trim()) || "+919345405242";
+  
+  // Add custom data if provided
+  if (customData && typeof customData === 'object') {
+    payload.data = customData;
+  }
 
   console.log('📤 Step 1: Creating subscriber with payload:', JSON.stringify(payload, null, 2));
 
@@ -619,33 +672,63 @@ export default async function handler(req, res) {
             subscriptionIdType: typeof oneSignalSubscriptionId
           });
           
-          // Get deviceToken to use for fetching OneSignal ID
-          const deviceTokenToFetch = oneSignalPlayerId ;
+          // Get deviceToken to use for fetching OneSignal user data
+          const deviceTokenToFetch = oneSignalPlayerId;
           
-          // Fetch OneSignal ID from OneSignal API
+          // Fetch full OneSignal user data from OneSignal API
+          let onesignalUserData = null;
           let onesignalId = null;
           if (deviceTokenToFetch) {
-            console.log('📱 Fetching OneSignal ID from OneSignal API...');
-            onesignalId = await fetchOneSignalIdFromOneSignal(deviceTokenToFetch);
+            console.log('📱 Fetching OneSignal user data from OneSignal API...');
+            onesignalUserData = await fetchOneSignalUserData(deviceTokenToFetch);
             
-            if (onesignalId) {
-              console.log('✅ OneSignal ID retrieved from OneSignal API:', onesignalId);
+            if (onesignalUserData && onesignalUserData.onesignalId) {
+              console.log('✅ OneSignal user data retrieved from OneSignal API:', onesignalUserData);
+              onesignalId = onesignalUserData.onesignalId;
+              
+              // If OneSignal user data is available and has externalId, use it to create/update subscriber
+              if (onesignalUserData.externalId) {
+                console.log('🔄 Using OneSignal data to create/update subscriber:', {
+                  subscriberId: onesignalUserData.externalId,
+                  firstName: onesignalUserData.firstName,
+                  lastName: onesignalUserData.lastName,
+                  phone: onesignalUserData.phone,
+                  email: onesignalUserData.email,
+                  onesignalId: onesignalUserData.onesignalId
+                });
+                
+                // Create/update subscriber using OneSignal data
+                await createOrUpdateNovuSubscriber({
+                  subscriberId: onesignalUserData.externalId,
+                  firstName: onesignalUserData.firstName || "Mounika",
+                  lastName: onesignalUserData.lastName || "M",
+                  email: onesignalUserData.email || "mounika@elbrit.org",
+                  phone: onesignalUserData.phone || "+919345405242",
+                  novuSecretKey,
+                  customData: {
+                    onesignalId: onesignalUserData.onesignalId
+                  }
+                });
+                
+                // Update subscriberId to use OneSignal externalId for credentials update
+                subscriberId = onesignalUserData.externalId;
+              }
             } else {
-              console.error('❌ OneSignal ID not available from OneSignal API:', {
+              console.error('❌ OneSignal user data not available from OneSignal API:', {
                 subscriberId,
                 deviceTokenUsed: deviceTokenToFetch,
                 oneSignalPlayerId: oneSignalPlayerId || 'NULL',
                 oneSignalSubscriptionId: oneSignalSubscriptionId || 'NULL',
-                error: 'Could not fetch OneSignal ID from OneSignal API',
+                error: 'Could not fetch OneSignal user data from OneSignal API',
                 action: 'Skipping device token update - push notifications will not work'
               });
             }
           } else {
-            console.error('❌ No device token provided to fetch OneSignal ID:', {
+            console.error('❌ No device token provided to fetch OneSignal user data:', {
               subscriberId,
               oneSignalPlayerId: oneSignalPlayerId || 'NULL',
               oneSignalSubscriptionId: oneSignalSubscriptionId || 'NULL',
-              error: 'No device token available to fetch OneSignal ID',
+              error: 'No device token available to fetch OneSignal user data',
               action: 'Skipping device token update - push notifications will not work'
             });
           }
