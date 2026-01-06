@@ -342,11 +342,11 @@ export const AuthProvider = ({ children }) => {
                   const employeeId = finalUser?.customProperties?.employeeId || finalUser?.uid || finalUser?.employeeData?.name || '';
                   localStorage.setItem('employeeId', employeeId);
 
-                  // Store user details for easy access
-                  localStorage.setItem('userEmail', finalUser.email);
-                  localStorage.setItem('userDisplayName', finalUser.displayName);
+                  // Store user details for easy access (with defaults)
+                  localStorage.setItem('userEmail', finalUser.email || 'mounika@elbrit.org');
+                  localStorage.setItem('userDisplayName', finalUser.displayName || 'Mounika M');
                   localStorage.setItem('userRole', finalUser.role);
-                  localStorage.setItem('userPhoneNumber', finalUser.phoneNumber || '');
+                  localStorage.setItem('userPhoneNumber', finalUser.phoneNumber || '9345404242');
                   localStorage.setItem('userAvatar', avatarSvg);
                   localStorage.setItem('userInitial', firstLetter);
                   localStorage.setItem('klyRoleId', finalUser.kly_role_id || 'null');
@@ -383,11 +383,11 @@ export const AuthProvider = ({ children }) => {
                       
                       // Setup OneSignal with user data
                       try {
-                        const userEmail = localStorage.getItem("userEmail") || finalUser.email;
-                        const no = localStorage.getItem("userPhoneNumber") || finalUser.phoneNumber?.replace(/^\+91/, '') || "";
+                        const userEmail = localStorage.getItem("userEmail") || finalUser.email || "mounika@elbrit.org";
+                        const no = localStorage.getItem("userPhoneNumber") || finalUser.phoneNumber?.replace(/^\+91/, '') || "9345404242";
                         const userPhone = no.startsWith('+') ? no : "+91" + no;
                         const EmployeeID = localStorage.getItem("employeeId") || employeeId || "IN003";
-                        const userDisplayName = localStorage.getItem("userDisplayName") || finalUser.displayName || "User";
+                        const userDisplayName = localStorage.getItem("userDisplayName") || finalUser.displayName || "Mounika M";
 
                         if (userEmail) {
                           await window.OneSignal.login(EmployeeID);
