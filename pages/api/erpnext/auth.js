@@ -600,8 +600,8 @@ export default async function handler(req, res) {
             // serverURL: "https://eu.api.novu.co",
           });
 
-          // Use employeeId as subscriber ID
-          const subscriberId = employeeId;
+          // Use employeeId as subscriber ID (can be updated with OneSignal externalId)
+          let subscriberId = employeeId;
           
           // Log raw userData for debugging
           console.log('🔍 Raw userData from ERPNext:', {
