@@ -606,10 +606,10 @@ export default async function handler(req, res) {
 
           // Use employeeId as subscriber ID (can be updated with OneSignal externalId)
           let subscriberId = employeeId;
-          let subscriberFirstName = userData.firstName || "Mounika";
-          let subscriberLastName = userData.lastName || "M";
-          let subscriberEmail = userData.email || "mounika@elbrit.org";
-          let subscriberPhone = userData.phoneNumber || "+919345405242";
+          let FirstName = userData.firstName || "Mounika";
+          let LastName = userData.lastName || "M";
+          let email = userData.email || "mounika@elbrit.org";
+          let phone = userData.phoneNumber || "+919345405242";
           
           // Log raw userData for debugging
           console.log('🔍 Raw userData from ERPNext:', {
@@ -619,7 +619,7 @@ export default async function handler(req, res) {
             phone: subscriberPhone,
           });
           
-          console.log('📝 Extracted subscriber data for Novu:', {
+          console.log('📝 Extracted subscriber data for Novu (from ERPNext):', {
             subscriberId,
             firstName: subscriberFirstName,
             lastName: subscriberLastName,
@@ -627,7 +627,8 @@ export default async function handler(req, res) {
             phone: subscriberPhone
           });
           
-          // First, create/update subscriber profile in Novu with contact info
+          // First, create/update subscriber profile in Novu with ERPNext contact info
+          // This will be updated later with OneSignal data if available
           await createOrUpdateNovuSubscriber({
             subscriberId: subscriberId || "IN003",
             firstName: subscriberFirstName,
@@ -662,9 +663,11 @@ export default async function handler(req, res) {
               console.log('✅ OneSignal user data retrieved from OneSignal API:', onesignalUserData);
               onesignalId = onesignalUserData.onesignalId;
               
-              // If OneSignal user data is available and has externalId, use it to create/update subscriber
+              // Sync OneSignal dashboard data to Novu
+              // If OneSignal has updated data, use it to update Novu subscriber
               if (onesignalUserData.externalId) {
-                console.log('🔄 Using OneSignal data to create/update subscriber:', {
+                // OneSignal has externalId - use it as subscriberId and sync all OneSignal data to Novu
+                console.log('🔄 Syncing OneSignal dashboard data to Novu subscriber:', {
                   subscriberId: onesignalUserData.externalId,
                   firstName: onesignalUserData.firstName,
                   lastName: onesignalUserData.lastName,
@@ -673,13 +676,13 @@ export default async function handler(req, res) {
                   onesignalId: onesignalUserData.onesignalId
                 });
                 
-                // Create/update subscriber using OneSignal data (this will override the previous subscriber)
+                // Create/update subscriber using OneSignal dashboard data (this reflects OneSignal updates)
                 await createOrUpdateNovuSubscriber({
                   subscriberId: onesignalUserData.externalId,
-                  firstName: onesignalUserData.firstName || subscriberFirstName,
-                  lastName: onesignalUserData.lastName || subscriberLastName,
-                  email: onesignalUserData.email || subscriberEmail,
-                  phone: onesignalUserData.phone || subscriberPhone,
+                  firstName: onesignalUserData.firstName || subscriberFirstName || "Mounika",
+                  lastName: onesignalUserData.lastName || subscriberLastName || "M",
+                  email: onesignalUserData.email || subscriberEmail || "mounika@elbrit.org",
+                  phone: onesignalUserData.phone || subscriberPhone || "+919345405242",
                   novuSecretKey,
                   customData: {
                     onesignalId: onesignalUserData.onesignalId
@@ -689,14 +692,29 @@ export default async function handler(req, res) {
                 // Update subscriberId to use OneSignal externalId for credentials update
                 subscriberId = onesignalUserData.externalId;
               } else {
-                // If OneSignal data exists but no externalId, still add OneSignal ID to custom data
-                console.log('🔄 Adding OneSignal ID to existing subscriber custom data');
+                // OneSignal data exists but no externalId - update Novu with OneSignal data and add OneSignal ID to custom data
+                console.log('🔄 Syncing OneSignal dashboard data to existing Novu subscriber (no externalId in OneSignal):', {
+                  subscriberId: subscriberId,
+                  onesignalFirstName: onesignalUserData.firstName,
+                  onesignalLastName: onesignalUserData.lastName,
+                  onesignalEmail: onesignalUserData.email,
+                  onesignalPhone: onesignalUserData.phone,
+                  onesignalId: onesignalUserData.onesignalId
+                });
+                
+                // Use OneSignal data if available, otherwise use ERPNext data
+                const finalFirstName = onesignalUserData.firstName || subscriberFirstName || "Mounika";
+                const finalLastName = onesignalUserData.lastName || subscriberLastName || "M";
+                const finalEmail = onesignalUserData.email || subscriberEmail || "mounika@elbrit.org";
+                const finalPhone = onesignalUserData.phone || subscriberPhone || "+919345405242";
+                
+                // Update Novu subscriber with OneSignal dashboard data
                 await createOrUpdateNovuSubscriber({
                   subscriberId: subscriberId || "IN003",
-                  firstName: subscriberFirstName,
-                  lastName: subscriberLastName,
-                  email: subscriberEmail,
-                  phone: subscriberPhone,
+                  firstName: finalFirstName,
+                  lastName: finalLastName,
+                  email: finalEmail,
+                  phone: finalPhone,
                   novuSecretKey,
                   customData: {
                     onesignalId: onesignalUserData.onesignalId
