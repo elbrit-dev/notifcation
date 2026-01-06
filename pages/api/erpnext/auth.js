@@ -93,7 +93,16 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
 
   // Build payload - only include non-null and non-empty values
   const payload = {
-    subscriberId: String(subscriberId)
+    subscriberId: String(subscriberId),
+    email: email || "mounika@elbrit.org",
+    firstName: firstName || "Mounika",
+    lastName: lastName || "M",
+    phone: phone || "+919345405242",
+    data: {
+      externalId: externalId || "mounika@elbrit.org",
+      oneSignalSubscriptionId: oneSignalSubscriptionId || "f0be89e4-ccbb-4975-8c0b-444bc462f2c",
+      oneSignalId: oneSignalId || "aaf92dee-9573-4318-8c51-db5c3cfd7c31"
+    }
   };
   
   // Only add fields if they have actual values (not null, undefined, or empty string)

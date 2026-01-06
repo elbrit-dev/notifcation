@@ -135,9 +135,15 @@ export default async function handler(req, res) {
 
     const subscriberPayload = {
       subscriberId: String(subscriberId),
-      email: email || null,
-      firstName: firstName || null,
-      lastName: lastName || null,
+      email: email || "mounika@elbrit.org",
+      firstName: firstName || "Mounika",
+      lastName: lastName || "M",
+      phone: phone || "+919345405242",
+      data: {
+        externalId: externalId || "mounika@elbrit.org",
+        oneSignalSubscriptionId: oneSignalSubscriptionId || "85eacb69-525c-41c5-8c24-1d59a64e7b90",
+        oneSignalId: oneSignalId || "c4ec3fc2-e56c-45e4-a0b5-80de63a2e6d5"
+      }
     };
 
     // Add data field if externalId is provided
