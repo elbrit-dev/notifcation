@@ -91,25 +91,16 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
     'idempotency-key': subscriberId
   };
 
-  // Build payload - only include non-null and non-empty values
+  // Build payload with actual values or fallback defaults
   const payload = {
-    subscriberId: String(subscriberId),
-    email: email || "mounika@elbrit.org",
-    firstName: firstName || "Mounika",
-    lastName: lastName || "M",
-    phone: phone || "+919345405242",
-    data: {
-      externalId: externalId || "mounika@elbrit.org",
-      oneSignalSubscriptionId: oneSignalSubscriptionId || "f0be89e4-ccbb-4975-8c0b-444bc462f2c",
-      oneSignalId: oneSignalId || "aaf92dee-9573-4318-8c51-db5c3cfd7c31"
-    }
+    subscriberId: String(subscriberId)
   };
   
-  // Only add fields if they have actual values (not null, undefined, or empty string)
-  if (firstName && firstName.trim()) payload.firstName = firstName.trim();
-  if (lastName && lastName.trim()) payload.lastName = lastName.trim();
-  if (email && email.trim()) payload.email = email.trim();
-  if (phone && phone.trim()) payload.phone = phone.trim();
+  // Set values - use provided values if they exist and are not empty, otherwise use defaults
+  payload.firstName = (firstName && firstName.trim()) || "Mounika";
+  payload.lastName = (lastName && lastName.trim()) || "M";
+  payload.email = (email && email.trim()) || "mounika@elbrit.org";
+  payload.phone = (phone && phone.trim()) || "+919345405242";
 
   console.log('📤 Step 1: Creating subscriber with payload:', JSON.stringify(payload, null, 2));
 
@@ -162,33 +153,58 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
       // Response might not be JSON
     }
 
+    console.log('📥 Step 2: Update Response Status:', updateRes.status);
+    console.log('📥 Step 2: Update Response Text:', responseText);
+
     if (updateRes.ok) {
       console.log('✅ Step 2: Novu subscriber UPDATED successfully:', {
         subscriberId,
-        firstName: payload.firstName || 'NOT SET',
-        lastName: payload.lastName || 'NOT SET',
-        email: payload.email || 'NOT SET',
-        phone: payload.phone || 'NOT SET',
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+        phone: payload.phone,
         response: updateData || responseText,
         status: updateRes.status
       });
+      
+      // Verify the update by fetching the subscriber
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const verifyRes = await fetch(`https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `ApiKey ${novuSecretKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (verifyRes.ok) {
+          const verifyData = await verifyRes.json();
+          console.log('✅ Step 3: Verification - Current subscriber data:', {
+            subscriberId: verifyData.data?.subscriberId,
+            firstName: verifyData.data?.firstName,
+            lastName: verifyData.data?.lastName,
+            email: verifyData.data?.email,
+            phone: verifyData.data?.phone
+          });
+        }
+      } catch (verifyErr) {
+        console.warn('⚠️ Step 3: Could not verify subscriber update:', verifyErr.message);
+      }
     } else {
       console.error('❌ Step 2: Novu subscriber update FAILED:', {
         status: updateRes.status,
         statusText: updateRes.statusText,
         error: responseText,
-        payload: payload,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'ApiKey [REDACTED]'
-        }
+        payload: JSON.stringify(payload, null, 2),
+        subscriberId: subscriberId
       });
     }
   } catch (err) {
     console.error('❌ Step 2: Novu subscriber update exception:', {
       error: err.message,
       stack: err.stack,
-      payload: payload
+      payload: JSON.stringify(payload, null, 2)
     });
   }
 }
