@@ -59,6 +59,7 @@ export default async function handler(req, res) {
       subscriberId,        // Employee ID (e.g., 'IN003')
       email,              // Email (e.g., 'mounika@elbrit.org')
       displayName,         // Display name (e.g., 'mounika M')
+      phone,              // Phone number (e.g., '+919345405242')
       oneSignalSubscriptionId, // Subscription ID (e.g., '85eacb69-525c-41c5-8c24-1d59a64e7b90')
       externalId,         // External ID (e.g., 'mounika@elbrit.org')
       oneSignalId        // OneSignal ID (e.g., 'mounika@elbrit.org')
@@ -117,20 +118,54 @@ export default async function handler(req, res) {
         body: JSON.stringify(subscriberPayload)
       });
 
-      if (!createRes.ok && createRes.status !== 409) {
+      if (createRes.ok) {
+        console.log('✅ Novu subscriber created successfully:', subscriberId);
+      } else if (createRes.status === 409) {
+        console.log('ℹ️ Novu subscriber already exists, will update:', subscriberId);
+      } else {
         const errText = await createRes.text();
         console.warn('⚠️ Novu subscriber create failed:', createRes.status, errText);
       }
 
+      // Wait a bit to ensure subscriber is fully created before updating
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Update to ensure latest profile data
+      console.log('📤 Updating Novu subscriber with payload:', JSON.stringify(subscriberPayload, null, 2));
+      
       const updateRes = await fetch(`https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`, {
         method: 'PUT',
-        headers,
+        headers: {
+          Authorization: `ApiKey ${novuSecretKey}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(subscriberPayload)
       });
 
-      if (!updateRes.ok) {
-        const errText = await updateRes.text();
-        console.warn('⚠️ Novu subscriber update failed:', updateRes.status, errText);
+      const responseText = await updateRes.text();
+      let updateData = null;
+      try {
+        updateData = JSON.parse(responseText);
+      } catch (e) {
+        // Response might not be JSON
+      }
+
+      if (updateRes.ok) {
+        console.log('✅ Novu subscriber updated successfully:', {
+          subscriberId,
+          firstName: subscriberPayload.firstName || 'NOT SET',
+          lastName: subscriberPayload.lastName || 'NOT SET',
+          email: subscriberPayload.email || 'NOT SET',
+          phone: subscriberPayload.phone || 'NOT SET',
+          response: updateData || responseText
+        });
+      } else {
+        console.error('❌ Novu subscriber update FAILED:', {
+          status: updateRes.status,
+          statusText: updateRes.statusText,
+          error: responseText,
+          payload: JSON.stringify(subscriberPayload, null, 2)
+        });
       }
     } catch (subError) {
       console.error('❌ Error creating subscriber profile:', subError);

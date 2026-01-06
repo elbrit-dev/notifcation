@@ -19,10 +19,10 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
   };
   
   // Only add fields if they have actual values
-  if (firstName && firstName.trim()) payload.firstName ="Mounika";
-  if (lastName && lastName.trim()) payload.lastName ="M";
-  if (email && email.trim()) payload.email ="mounika@elbrit.org";
-  if (phone && phone.trim()) payload.phone ="+919345405242";
+  if (firstName && firstName.trim()) payload.firstName = firstName.trim();
+  if (lastName && lastName.trim()) payload.lastName = lastName.trim();
+  if (email && email.trim()) payload.email = email.trim();
+  if (phone && phone.trim()) payload.phone = phone.trim();
 
   console.log('📤 Creating Novu subscriber with payload:', JSON.stringify(payload, null, 2));
 
