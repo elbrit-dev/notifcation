@@ -45,15 +45,34 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
+    // Log the full error for debugging
+    console.error('❌ Error sending notification:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response?.data,
+      status: error.response?.status,
+      subscriberId,
+      workflowIdentifier,
+      title,
+      body
+    });
+
+    // Return detailed error information
     if (error.response?.data) {
       return res.status(error.response.status || 500).json({
         error: 'Failed to send notification',
-        details: error.response.data
+        details: error.response.data,
+        message: error.message,
+        workflowId: workflowIdentifier,
+        subscriberId: subscriberId
       });
     }
 
     return res.status(500).json({
-      error: 'Failed to send notification'
+      error: 'Failed to send notification',
+      message: error.message || 'Unknown error',
+      workflowId: workflowIdentifier,
+      subscriberId: subscriberId
     });
   }
 }
