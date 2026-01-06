@@ -29,7 +29,11 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
       body: JSON.stringify(payload)
     });
 
-    if (!createRes.ok && createRes.status !== 409) {
+    if (createRes.ok) {
+      console.log('✅ Novu subscriber created successfully:', subscriberId);
+    } else if (createRes.status === 409) {
+      console.log('ℹ️ Novu subscriber already exists, will update:', subscriberId);
+    } else {
       const errText = await createRes.text();
       console.warn('⚠️ Novu subscriber create failed:', createRes.status, errText);
     }
@@ -45,7 +49,9 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
       body: JSON.stringify(payload)
     });
 
-    if (!updateRes.ok) {
+    if (updateRes.ok) {
+      console.log('✅ Novu subscriber updated successfully:', subscriberId);
+    } else {
       const errText = await updateRes.text();
       console.warn('⚠️ Novu subscriber update failed:', updateRes.status, errText);
     }
@@ -65,6 +71,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Email or phone number is required' });
   }
 
+  console.log('📥 OneSignal IDs received:', {
+    email: email || phoneNumber,
+    oneSignalPlayerId: oneSignalPlayerId || 'NOT PROVIDED',
+    oneSignalSubscriptionId: oneSignalSubscriptionId || 'NOT PROVIDED'
+  });
 
   try {
     // ERPNext API configuration
@@ -77,6 +88,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'ERPNext configuration missing' });
     }
 
+    console.log('🔐 ERPNext Auth Request:', { email, phoneNumber, authProvider });
 
     // Always search by company_email for role-based access
     // For Microsoft SSO: use email directly as company_email
@@ -89,7 +101,6 @@ export default async function handler(req, res) {
     if (phoneNumber && !email) {
       console.log('📱 Phone authentication - searching for employee by phone number');
       
-      // Clean phone number (remove +91 country code)
       const cleanedPhoneNumber = phoneNumber.replace(/^\+91/, '').replace(/^\+/, '');
       
       // Search Employee table by phone number to get employee ID
@@ -100,7 +111,7 @@ export default async function handler(req, res) {
         ]),
         fields: JSON.stringify(['name', 'first_name', 'cell_number', 'fsl_whatsapp_number', 'company_email', 'kly_role_id', 'status'])
       });
-      
+
       const employeeResponse = await fetch(`${employeeSearchUrl}?${employeeSearchParams}`, {
         method: 'GET',
         headers: {
@@ -117,6 +128,7 @@ export default async function handler(req, res) {
           
           // Check if employee status is Active
           if (employee.status !== 'Active') {
+            console.warn('⚠️ Employee account is not active:', phoneNumber, 'Status:', employee.status);
             return res.status(403).json({
               success: false,
               error: 'Access Denied',
@@ -130,10 +142,7 @@ export default async function handler(req, res) {
             });
           }
           
-          // Store employee ID for direct fetch
           employeeIdFromPhone = employee.name;
-          
-          // If company_email exists, use it as searchValue for Microsoft SSO compatibility
           if (employee.company_email) {
             companyEmail = employee.company_email;
             searchValue = companyEmail;
@@ -172,10 +181,8 @@ export default async function handler(req, res) {
     let userData = null;
     let userSource = '';
 
-    // If we have employee ID from phone auth, fetch directly by ID
     if (employeeIdFromPhone) {
       const employeeUrl = `${erpnextUrl}/api/resource/Employee/${employeeIdFromPhone}`;
-      
       const employeeResponse = await fetch(employeeUrl, {
         method: 'GET',
         headers: {
@@ -186,7 +193,6 @@ export default async function handler(req, res) {
 
       if (employeeResponse.ok) {
         const employeeResult = await employeeResponse.json();
-
         if (employeeResult.data) {
           const employee = employeeResult.data;
           
@@ -231,7 +237,6 @@ export default async function handler(req, res) {
         }
       }
     } 
-    // Otherwise, search by company_email (for Microsoft SSO)
     else if (searchValue) {
       const employeeSearchUrl = `${erpnextUrl}/api/resource/Employee`;
       const employeeSearchParams = new URLSearchParams({
@@ -249,7 +254,6 @@ export default async function handler(req, res) {
 
       if (employeeResponse.ok) {
         const employeeResult = await employeeResponse.json();
-
         if (employeeResult.data && employeeResult.data.length > 0) {
           const employee = employeeResult.data[0];
           
@@ -295,9 +299,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // If user not found in ERPNext, reject access
     if (!userData) {
-      
       return res.status(403).json({
         success: false,
         error: 'Access Denied',
@@ -310,8 +312,16 @@ export default async function handler(req, res) {
       });
     }
 
-    // Generate a simple token
+    // Generate a simple token (you can implement JWT if needed)
     const token = Buffer.from(`${userData.uid}:${Date.now()}`).toString('base64');
+
+    console.log('✅ ERPNext Auth successful:', {
+      userSource,
+      companyEmail: searchValue,
+      email: userData.email,
+      role: userData.role,
+      authProvider: userData.authProvider
+    });
 
     // Get employeeId from ERPNext user data for subscriber ID
     const employeeId = userData?.customProperties?.employeeId || userData?.uid || userData?.employeeData?.name || null;
@@ -328,16 +338,12 @@ export default async function handler(req, res) {
             // serverURL: "https://eu.api.novu.co",
           });
 
-          // Use employeeId as subscriber ID
           const subscriberId = employeeId;
+          const subscriberFirstName = userData.displayName?.split(' ')[0] || userData.firstName || "Mounika";
+          const subscriberLastName = userData.displayName?.split(' ').slice(1).join(' ') || userData.lastName || "M";
+          const subscriberEmail = userData.email || "mounika@elbrit.org";
+          const subscriberPhone = userData.phoneNumber || "+919345405242";
           
-          // Extract user data from ERPNext
-          const subscriberFirstName = userData.displayName?.split(' ')[0] || userData.employeeData?.first_name || "Mounika";
-          const subscriberLastName = userData.displayName?.split(' ').slice(1).join(' ') || userData.employeeData?.last_name || "M";
-          const subscriberEmail = userData.email || userData.employeeData?.company_email || "mounika@elbrit.org";
-          const subscriberPhone = userData.phoneNumber || userData.employeeData?.cell_number || "+919345405242";
-          
-          // Create/update subscriber profile in Novu
           await createOrUpdateNovuSubscriber({
             subscriberId: subscriberId || "IN003",
             firstName: subscriberFirstName,
@@ -347,7 +353,6 @@ export default async function handler(req, res) {
             novuSecretKey
           });
 
-          // Update credentials with OneSignal device token
           if (oneSignalPlayerId && typeof oneSignalPlayerId === 'string' && oneSignalPlayerId.trim()) {
             const validPlayerId = oneSignalPlayerId.trim();
             const integrationIdentifier = process.env.NOVU_INTEGRATION_IDENTIFIER || process.env.NEXT_PUBLIC_NOVU_INTEGRATION_IDENTIFIER || null;
@@ -355,18 +360,20 @@ export default async function handler(req, res) {
             const updateParams = {
               providerId: ChatOrPushProviderEnum.OneSignal,
               credentials: {
-                deviceTokens: [validPlayerId],
+                deviceTokens: [validPlayerId], // Using ONLY onesignalId (Player ID) as device token
               },
             };
 
+            // Add integrationIdentifier if provided
             if (integrationIdentifier) {
               updateParams.integrationIdentifier = integrationIdentifier;
             }
 
             try {
               await novu.subscribers.credentials.update(updateParams, subscriberId);
+              console.log('✅ Novu credentials updated:', subscriberId);
             } catch (credError) {
-              console.error('❌ Failed to update Novu credentials:', credError.message || credError);
+              console.error('❌ Novu credentials update failed:', credError.message);
             }
           }
         } else {

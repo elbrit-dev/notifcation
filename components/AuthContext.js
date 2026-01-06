@@ -342,11 +342,11 @@ export const AuthProvider = ({ children }) => {
                   const employeeId = finalUser?.customProperties?.employeeId || finalUser?.uid || finalUser?.employeeData?.name || '';
                   localStorage.setItem('employeeId', employeeId);
 
-                  // Store user details for easy access (with defaults)
-                  localStorage.setItem('userEmail', finalUser.email || 'mounika@elbrit.org');
-                  localStorage.setItem('userDisplayName', finalUser.displayName || 'Mounika M');
+                  // Store user details for easy access
+                  localStorage.setItem('userEmail', finalUser.email);
+                  localStorage.setItem('userDisplayName', finalUser.displayName);
                   localStorage.setItem('userRole', finalUser.role);
-                  localStorage.setItem('userPhoneNumber', finalUser.phoneNumber || '9345404242');
+                  localStorage.setItem('userPhoneNumber', finalUser.phoneNumber || '');
                   localStorage.setItem('userAvatar', avatarSvg);
                   localStorage.setItem('userInitial', firstLetter);
                   localStorage.setItem('klyRoleId', finalUser.kly_role_id || 'null');
@@ -381,23 +381,45 @@ export const AuthProvider = ({ children }) => {
                         }
                       }
                       
-                      // Setup OneSignal with user data
-                      try {
-                        const userEmail = localStorage.getItem("userEmail") || finalUser.email || "mounika@elbrit.org";
-                        const no = localStorage.getItem("userPhoneNumber") || finalUser.phoneNumber?.replace(/^\+91/, '') || "9345404242";
-                        const userPhone = no.startsWith('+') ? no : "+91" + no;
-                        const EmployeeID = localStorage.getItem("employeeId") || employeeId || "IN003";
-                        const userDisplayName = localStorage.getItem("userDisplayName") || finalUser.displayName || "Mounika M";
-
-                        if (userEmail) {
-                          await window.OneSignal.login(EmployeeID);
-                          await window.OneSignal.User.addEmail(userEmail);
-                          if (userPhone) await window.OneSignal.User.addSms(userPhone);
-                          if (EmployeeID) await window.OneSignal.User.addTag("EmployeeID", EmployeeID);
-                          if (userDisplayName) await window.OneSignal.User.addTag("Name", userDisplayName);
+                      // Login to OneSignal with email from ERPNext
+                      if (finalUser.email) {
+                        try {
+                          await window.OneSignal.login(finalUser.email);
+                          await window.OneSignal.User.addEmail(finalUser.email);
+                          console.log('✅ OneSignal email updated from ERPNext:', finalUser.email);
+                        } catch (emailErr) {
+                          console.warn('⚠️ Unable to update OneSignal email:', emailErr);
                         }
-                      } catch (oneSignalErr) {
-                        console.warn('⚠️ OneSignal setup failed:', oneSignalErr);
+                      }
+                      
+                      // Add phone to OneSignal (use raw value - no formatting)
+                      if (finalUser.phoneNumber) {
+                        try {
+                          await window.OneSignal.User.addSms(finalUser.phoneNumber);
+                          console.log('✅ OneSignal phone updated from ERPNext:', finalUser.phoneNumber);
+                        } catch (smsErr) {
+                          console.warn('⚠️ Unable to update OneSignal phone:', smsErr);
+                        }
+                      }
+                      
+                      // Add EmployeeID tag (use fresh employeeId from ERPNext)
+                      if (employeeId) {
+                        try {
+                          await window.OneSignal.User.addTag('EmployeeID', employeeId);
+                          console.log('✅ OneSignal EmployeeID updated from ERPNext:', employeeId);
+                        } catch (tagErr) {
+                          console.warn('⚠️ Unable to update OneSignal EmployeeID tag:', tagErr);
+                        }
+                      }
+                      
+                      // Add Name tag
+                      if (finalUser.displayName) {
+                        try {
+                          await window.OneSignal.User.addTag('Name', finalUser.displayName);
+                          console.log('✅ OneSignal Name updated from ERPNext:', finalUser.displayName);
+                        } catch (tagErr) {
+                          console.warn('⚠️ Unable to update OneSignal Name tag:', tagErr);
+                        }
                       }
                     } catch (oneSignalErr) {
                       console.warn('⚠️ Error updating OneSignal profile from ERPNext data:', oneSignalErr);
