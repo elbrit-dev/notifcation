@@ -91,19 +91,21 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
     'idempotency-key': subscriberId
   };
 
-  // Build payload - only include non-null values
+  // Build payload - only include non-null and non-empty values
   const payload = {
     subscriberId: String(subscriberId)
   };
   
-  if (firstName) payload.firstName = firstName;
-  if (lastName) payload.lastName = lastName;
-  if (email) payload.email = email;
-  if (phone) payload.phone = phone;
+  // Only add fields if they have actual values (not null, undefined, or empty string)
+  if (firstName && firstName.trim()) payload.firstName = firstName.trim();
+  if (lastName && lastName.trim()) payload.lastName = lastName.trim();
+  if (email && email.trim()) payload.email = email.trim();
+  if (phone && phone.trim()) payload.phone = phone.trim();
 
-  console.log('📤 Sending subscriber payload to Novu:', JSON.stringify(payload, null, 2));
+  console.log('📤 Step 1: Creating subscriber with payload:', JSON.stringify(payload, null, 2));
 
   // Create subscriber (ignore if already exists via failIfExists flag)
+  let createSuccess = false;
   try {
     const createRes = await fetch(`https://api.novu.co/v2/subscribers?failIfExists=true`, {
       method: 'POST',
@@ -113,24 +115,27 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
 
     if (createRes.ok) {
       const createData = await createRes.json().catch(() => null);
-      console.log('✅ Novu subscriber created successfully:', subscriberId, createData);
+      console.log('✅ Step 1: Novu subscriber created successfully:', subscriberId);
+      createSuccess = true;
     } else if (createRes.status === 409) {
-      console.log('ℹ️ Novu subscriber already exists, will update:', subscriberId);
+      console.log('ℹ️ Step 1: Novu subscriber already exists (status 409), proceeding to update:', subscriberId);
+      createSuccess = true; // Subscriber exists, we can update
     } else {
       const errText = await createRes.text();
-      console.warn('⚠️ Novu subscriber create failed:', createRes.status, errText);
+      console.warn('⚠️ Step 1: Novu subscriber create failed:', createRes.status, errText);
     }
   } catch (err) {
-    console.warn('⚠️ Novu subscriber create exception:', err);
+    console.error('❌ Step 1: Novu subscriber create exception:', err);
   }
 
-  // Wait a bit to ensure subscriber is fully created before updating
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  // Wait a bit longer to ensure subscriber is fully created/ready before updating
+  console.log('⏳ Waiting 1 second before update...');
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  // Update to ensure latest profile data
+  // Step 2: ALWAYS update to ensure latest profile data (even if create succeeded)
+  console.log('📤 Step 2: Updating Novu subscriber with latest data:', JSON.stringify(payload, null, 2));
+  
   try {
-    console.log('🔄 Updating Novu subscriber with latest data:', JSON.stringify(payload, null, 2));
-    
     const updateRes = await fetch(`https://api.novu.co/v2/subscribers/${encodeURIComponent(subscriberId)}`, {
       method: 'PUT',
       headers: {
@@ -140,27 +145,42 @@ async function createOrUpdateNovuSubscriber({ subscriberId, firstName, lastName,
       body: JSON.stringify(payload)
     });
 
+    const responseText = await updateRes.text();
+    let updateData = null;
+    try {
+      updateData = JSON.parse(responseText);
+    } catch (e) {
+      // Response might not be JSON
+    }
+
     if (updateRes.ok) {
-      const updateData = await updateRes.json().catch(() => null);
-      console.log('✅ Novu subscriber updated successfully:', {
+      console.log('✅ Step 2: Novu subscriber UPDATED successfully:', {
         subscriberId,
         firstName: payload.firstName || 'NOT SET',
         lastName: payload.lastName || 'NOT SET',
         email: payload.email || 'NOT SET',
         phone: payload.phone || 'NOT SET',
-        response: updateData
+        response: updateData || responseText,
+        status: updateRes.status
       });
     } else {
-      const errText = await updateRes.text();
-      console.error('❌ Novu subscriber update failed:', {
+      console.error('❌ Step 2: Novu subscriber update FAILED:', {
         status: updateRes.status,
         statusText: updateRes.statusText,
-        error: errText,
-        payload: payload
+        error: responseText,
+        payload: payload,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'ApiKey [REDACTED]'
+        }
       });
     }
   } catch (err) {
-    console.error('❌ Novu subscriber update exception:', err);
+    console.error('❌ Step 2: Novu subscriber update exception:', {
+      error: err.message,
+      stack: err.stack,
+      payload: payload
+    });
   }
 }
 
@@ -522,20 +542,21 @@ export default async function handler(req, res) {
           });
           
           // Extract user data from ERPNext for subscriber
-          const subscriberFirstName = userData.displayName?.split(' ')[0] || 
-                                     userData.firstName || 
-                                     userData.employeeData?.first_name || 
-                                    "Mounika";
-          const subscriberLastName = userData.displayName?.split(' ').slice(1).join(' ') || 
-                                    userData.lastName || 
-                                    userData.employeeData?.last_name || 
-                                  "M";
-          const subscriberEmail = userData.email || 
-                                 userData.employeeData?.company_email || 
-                                 "mounika@elbrit.org";
-          const subscriberPhone = userData.phoneNumber || 
-                                userData.employeeData?.cell_number || 
-                                userData.employeeData?.fsl_whatsapp_number || 
+          // Use actual user data, with fallback to test values if not available
+          const subscriberFirstName = (userData.displayName?.split(' ')[0]?.trim()) || 
+                                     (userData.firstName?.trim()) || 
+                                     (userData.employeeData?.first_name?.trim()) || 
+                                     "Mounika";
+          const subscriberLastName = (userData.displayName?.split(' ').slice(1).join(' ')?.trim()) || 
+                                    (userData.lastName?.trim()) || 
+                                    (userData.employeeData?.last_name?.trim()) || 
+                                    "M";
+          const subscriberEmail = (userData.email?.trim()) || 
+                                (userData.employeeData?.company_email?.trim()) || 
+                                "mounika@elbrit.org";
+          const subscriberPhone = (userData.phoneNumber?.trim()) || 
+                                (userData.employeeData?.cell_number?.trim()) || 
+                                (userData.employeeData?.fsl_whatsapp_number?.trim()) || 
                                 "+919345405242";
           
           console.log('📝 Extracted subscriber data for Novu:', {
