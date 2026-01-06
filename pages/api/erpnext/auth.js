@@ -99,16 +99,34 @@ async function fetchOneSignalUserData(deviceToken) {
       return null;
     }
 
+    // Extract all tags and properties for otherProps
+    const allTags = userData.properties?.tags || {};
+    const allProperties = userData.properties || {};
+    
     const result = {
       onesignalId,
       externalId,
       firstName,
       lastName,
       phone,
-      email
+      email,
+      // Include all OneSignal tags and properties as otherProps
+      tags: allTags,
+      properties: allProperties,
+      subscriptions: userData.subscriptions || []
     };
 
-    console.log('✅ OneSignal user data extracted:', result);
+    console.log('✅ OneSignal user data extracted:', {
+      onesignalId: result.onesignalId,
+      externalId: result.externalId,
+      firstName: result.firstName,
+      lastName: result.lastName,
+      phone: result.phone,
+      email: result.email,
+      tagsCount: Object.keys(result.tags).length,
+      propertiesCount: Object.keys(result.properties).length,
+      subscriptionsCount: result.subscriptions.length
+    });
     return result;
 
   } catch (error) {
@@ -664,20 +682,24 @@ export default async function handler(req, res) {
               console.log('✅ OneSignal user data retrieved from OneSignal API:', onesignalUserData);
               onesignalId = onesignalUserData.onesignalId;
               
-              // Sync OneSignal dashboard data to Novu
-              // If OneSignal has updated data, use it to update Novu subscriber
+              // ALWAYS trigger Novu update when OneSignal data is fetched (OneSignal was updated)
+              // Sync OneSignal dashboard data to Novu including all otherProps (tags, properties, subscriptions)
+              console.log('🔄 OneSignal dashboard updated - triggering Novu subscriber update with all OneSignal data...');
+              
               if (onesignalUserData.externalId) {
                 // OneSignal has externalId - use it as subscriberId and sync all OneSignal data to Novu
-                console.log('🔄 Syncing OneSignal dashboard data to Novu subscriber:', {
+                console.log('🔄 Syncing OneSignal dashboard data to Novu subscriber (with externalId):', {
                   subscriberId: onesignalUserData.externalId,
                   firstName: onesignalUserData.firstName,
                   lastName: onesignalUserData.lastName,
                   phone: onesignalUserData.phone,
                   email: onesignalUserData.email,
-                  onesignalId: onesignalUserData.onesignalId
+                  onesignalId: onesignalUserData.onesignalId,
+                  tagsCount: Object.keys(onesignalUserData.tags || {}).length,
+                  propertiesCount: Object.keys(onesignalUserData.properties || {}).length
                 });
                 
-                // Create/update subscriber using OneSignal dashboard data (this reflects OneSignal updates)
+                // Create/update subscriber using OneSignal dashboard data (includes all otherProps)
                 await createOrUpdateNovuSubscriber({
                   subscriberId: onesignalUserData.externalId,
                   firstName: onesignalUserData.firstName || subscriberFirstName || "Mounika",
@@ -686,21 +708,29 @@ export default async function handler(req, res) {
                   phone: onesignalUserData.phone || subscriberPhone || "+919345405242",
                   novuSecretKey,
                   customData: {
-                    onesignalId: onesignalUserData.onesignalId
+                    onesignalId: onesignalUserData.onesignalId,
+                    // Include all OneSignal tags as otherProps
+                    ...onesignalUserData.tags,
+                    // Include OneSignal properties
+                    onesignalProperties: onesignalUserData.properties,
+                    // Include subscriptions info
+                    onesignalSubscriptions: onesignalUserData.subscriptions
                   }
                 });
                 
                 // Update subscriberId to use OneSignal externalId for credentials update
                 subscriberId = onesignalUserData.externalId;
               } else {
-                // OneSignal data exists but no externalId - update Novu with OneSignal data and add OneSignal ID to custom data
-                console.log('🔄 Syncing OneSignal dashboard data to existing Novu subscriber (no externalId in OneSignal):', {
+                // OneSignal data exists but no externalId - update Novu with OneSignal data and all otherProps
+                console.log('🔄 Syncing OneSignal dashboard data to existing Novu subscriber (no externalId):', {
                   subscriberId: subscriberId,
                   onesignalFirstName: onesignalUserData.firstName,
                   onesignalLastName: onesignalUserData.lastName,
                   onesignalEmail: onesignalUserData.email,
                   onesignalPhone: onesignalUserData.phone,
-                  onesignalId: onesignalUserData.onesignalId
+                  onesignalId: onesignalUserData.onesignalId,
+                  tagsCount: Object.keys(onesignalUserData.tags || {}).length,
+                  propertiesCount: Object.keys(onesignalUserData.properties || {}).length
                 });
                 
                 // Use OneSignal data if available, otherwise use ERPNext data
@@ -709,7 +739,7 @@ export default async function handler(req, res) {
                 const finalEmail = onesignalUserData.email || subscriberEmail || "mounika@elbrit.org";
                 const finalPhone = onesignalUserData.phone || subscriberPhone || "+919345405242";
                 
-                // Update Novu subscriber with OneSignal dashboard data
+                // Update Novu subscriber with OneSignal dashboard data (includes all otherProps)
                 await createOrUpdateNovuSubscriber({
                   subscriberId: subscriberId || "IN003",
                   firstName: finalFirstName,
@@ -718,7 +748,13 @@ export default async function handler(req, res) {
                   phone: finalPhone,
                   novuSecretKey,
                   customData: {
-                    onesignalId: onesignalUserData.onesignalId
+                    onesignalId: onesignalUserData.onesignalId,
+                    // Include all OneSignal tags as otherProps
+                    ...onesignalUserData.tags,
+                    // Include OneSignal properties
+                    onesignalProperties: onesignalUserData.properties,
+                    // Include subscriptions info
+                    onesignalSubscriptions: onesignalUserData.subscriptions
                   }
                 });
               }
