@@ -115,7 +115,7 @@ export default async function handler(req, res) {
       phone: phone || "+919345405242"
     };
 
-    // Add data field with all custom fields (externalId, oneSignalId, chatId, etc.)
+    // Add data field with all custom fields (externalId, oneSignalId, chatId, etc.
     const customData = {};
     if (externalId) customData.externalId = externalId;
     if (oneSignalId) customData.oneSignalId = oneSignalId;
